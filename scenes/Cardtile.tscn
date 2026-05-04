@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://d26gidfxh31fs"]
+
+[ext_resource type="Script" uid="uid://cu2t37al43ajb" path="res://scripts/card_tile.gd" id="1_743xt"]
+
+[node name="Panel" type="Panel" unique_id=1765537635]
+custom_minimum_size = Vector2(120, 180)
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_743xt")
+
+[node name="Label" type="Label" parent="." unique_id=1493789515]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+clip_text = true

@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://cvcsm8f754nki"]
+
+[ext_resource type="Script" uid="uid://dh6qr8ch1qt3t" path="res://scripts/main.gd" id="1_6r00q"]
+
+[node name="Node" type="Node" unique_id=1183878308]
+script = ExtResource("1_6r00q")
+
+[node name="Log" type="RichTextLabel" parent="." unique_id=364088397]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
