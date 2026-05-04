@@ -39,22 +39,16 @@ static func build_combatant(type: Type) -> Combatant:
 	c.deck_profile = d["deck_profile"]
 	c.deck = _build_deck(c.deck_profile)
 	c.deck.shuffle()
+	c.deck_total = c.deck.remaining()
 	return c
 
-static func _build_deck(profile: String) -> Deck:
+static func _build_deck(_profile: String) -> Deck:
 	var deck := Deck.new()
-	deck.cards.clear()
-	match profile:
-		"tank":
-			_fill(deck, [4,5,6,7,7,8,6,5,4,3], Card.Suit.CUORI)
-		"support":
-			_fill(deck, [1,2,3,8,9,5,6,1,2,9], Card.Suit.QUADRI)
-		"burst":
-			_fill(deck, [6,7,8,9,10,7,8,9,10,6], Card.Suit.FIORI)
-		"agile":
-			_fill(deck, [8,9,10,9,8,5,6,10,9,8], Card.Suit.CUORI)
+	_add(deck, "Colpo",   Card.Type.ATTACK, 5, 1, 2)
+	_add(deck, "Difesa",  Card.Type.BLOCK,  5, 1, 2)
+	_add(deck, "Pozione", Card.Type.HEAL,   4, 1, 1)
 	return deck
 
-static func _fill(deck: Deck, values: Array, suit: Card.Suit) -> void:
-	for v in values:
-		deck.cards.append(Card.new(v, suit))
+static func _add(deck: Deck, p_name: String, p_type: Card.Type, p_value: int, p_cost: int, count: int = 1) -> void:
+	for i in count:
+		deck.cards.append(Card.new(p_name, p_type, p_value, p_cost))

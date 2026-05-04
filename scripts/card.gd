@@ -1,71 +1,41 @@
 class_name Card
 extends RefCounted
 
-enum Suit { CUORI, QUADRI, FIORI, PICCHE }
-
-enum EffectType {
-	NONE,
-	DAMAGE,
+enum Type {
+	ATTACK,
+	BLOCK,
 	HEAL,
 	BUFF,
 	DEBUFF
 }
 
-const SUIT_NAMES := {
-	Suit.CUORI: "Cuori",
-	Suit.QUADRI: "Quadri",
-	Suit.FIORI: "Fiori",
-	Suit.PICCHE: "Picche",
-}
-
-const VALUE_NAMES := {
-	1: "Asso", 11: "Fante", 12: "Regina", 13: "Re"
-}
+enum BuffStat { ATTACK, HEAL }
 
 var card_name: String
+var description: String
+var type: Type
 var value: int
-var suit: Suit
-var effect_type: EffectType = EffectType.NONE
-var effect_value: int = 0
-var effect_stat: String = ""
+var mana_cost: int
+var duration: int = 1
 
 
-func _init(p_value: int, p_suit: Suit) -> void:
+func _init(p_name: String, p_type: Type, p_value: int, p_cost: int) -> void:
+	card_name = p_name
+	type = p_type
 	value = p_value
-	suit = p_suit
-	card_name = "%s di %s" % [_value_label(), SUIT_NAMES[suit]]
-	_assign_effect()
+	mana_cost = p_cost
+	description = _build_description()
 
 
-func _assign_effect() -> void:
-	if value <= 3:
-		effect_type = EffectType.HEAL
-		effect_value = value * 2
-	elif value <= 7:
-		effect_type = EffectType.DAMAGE
-		effect_value = value
-	elif value <= 9:
-		effect_type = EffectType.DEBUFF
-		effect_value = value - 5
-		effect_stat = "initiative"
-	else:
-		effect_type = EffectType.BUFF
-		effect_value = value - 7
-		effect_stat = "initiative"
-
-
-func description() -> String:
-	match effect_type:
-		EffectType.DAMAGE: return "Danno: %d" % effect_value
-		EffectType.HEAL:   return "Cura: %d HP" % effect_value
-		EffectType.BUFF:   return "Buff %s: +%d" % [effect_stat, effect_value]
-		EffectType.DEBUFF: return "Debuff %s: -%d" % [effect_stat, effect_value]
-	return "Nessun effetto"
-
-
-func _value_label() -> String:
-	return VALUE_NAMES.get(value, str(value))
+func _build_description() -> String:
+	match type:
+		Type.ATTACK: return "Infligge %d danni" % value
+		Type.BLOCK:  return "Blocca %d danni" % value
+		Type.HEAL:   return "Recupera %d HP" % value
+		Type.BUFF:   return "+%d danno per 1 turno" % value
+		Type.DEBUFF: return "+%d danno subito per 1 turno" % value
+	return ""
 
 
 func _to_string() -> String:
-	return "%s (%s)" % [card_name, description()]
+	return "%s (%s) [%d mana]" % [card_name, description, mana_cost]

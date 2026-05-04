@@ -8,9 +8,11 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 @onready var enemy_stats_panel: VBoxContainer = $GameUI/StatsBar/EnemyStats
 @onready var player_name_label: Label = $GameUI/StatsBar/PlayerStats/player_name
 @onready var player_hp_label: Label = $GameUI/StatsBar/PlayerStats/player_hp
+@onready var player_block_label: Label = $GameUI/StatsBar/PlayerStats/player_block
 @onready var player_initiative_label: Label = $GameUI/StatsBar/PlayerStats/player_initiative
 @onready var enemy_name_label: Label = $GameUI/StatsBar/EnemyStats/enemy_name
 @onready var enemy_hp_label: Label = $GameUI/StatsBar/EnemyStats/enemy_hp
+@onready var enemy_block_label: Label = $GameUI/StatsBar/EnemyStats/enemy_block
 @onready var enemy_initiative_label: Label = $GameUI/StatsBar/EnemyStats/enemy_initiative
 @onready var combat_log_text: RichTextLabel = $GameUI/MainArea/CombatLog
 @onready var enemy_card_played: Label = $GameUI/MainArea/Board/EnemyCardPlayed
@@ -20,6 +22,9 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 @onready var result_label: Label = $GameUI/GameOverOverlay/Panel/Margin/VBox/ResultLabel
 @onready var winner_label: Label = $GameUI/GameOverOverlay/Panel/Margin/VBox/WinnerLabel
 @onready var restart_button: Button = $GameUI/GameOverOverlay/Panel/Margin/VBox/RestartButton
+
+var end_turn_button: Button
+var player_deck_label: Label
 
 const FLASH_DURATION := 0.35
 const FLOAT_DURATION := 0.9
@@ -38,11 +43,25 @@ func _ready() -> void:
 	GameManager.turn_started.connect(_on_turn_started)
 	GameManager.damage_dealt.connect(_on_damage_dealt)
 	GameManager.healed.connect(_on_healed)
+	GameManager.card_drawn.connect(_on_card_drawn)
 	$ClassSelection/Button_Guerriero.pressed.connect(_select_class.bind(CharacterClass.Type.GUERRIERO))
 	$ClassSelection/Button_Druido.pressed.connect(_select_class.bind(CharacterClass.Type.DRUIDO))
 	$ClassSelection/Button_Mago.pressed.connect(_select_class.bind(CharacterClass.Type.MAGO))
 	$ClassSelection/Button_Ladro.pressed.connect(_select_class.bind(CharacterClass.Type.LADRO))
 	restart_button.pressed.connect(_on_restart_pressed)
+	_create_end_turn_button()
+	player_deck_label = Label.new()
+	player_stats_panel.add_child(player_deck_label)
+
+
+func _create_end_turn_button() -> void:
+	end_turn_button = Button.new()
+	end_turn_button.text = "Fine Turno"
+	end_turn_button.visible = false
+	end_turn_button.custom_minimum_size = Vector2(140, 36)
+	end_turn_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	player_hand_container.add_child(end_turn_button)
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
 
 
 func _on_restart_pressed() -> void:
@@ -68,6 +87,7 @@ func _reset_visual_state() -> void:
 	player_card_played.text = "Giocatore: —"
 	player_name_label.remove_theme_color_override("font_color")
 	enemy_name_label.remove_theme_color_override("font_color")
+	end_turn_button.visible = false
 
 
 func _update_stats() -> void:
@@ -77,9 +97,14 @@ func _update_stats() -> void:
 	var e := GameManager.enemy
 	player_name_label.text = p.combatant_name
 	player_hp_label.text = "HP: %d/%d" % [p.health, p.max_health]
-	player_initiative_label.text = "Iniziativa: %d" % p.initiative
+	player_block_label.text = "🛡 %d" % p.block_buffer
+	player_block_label.visible = p.block_buffer > 0
+	player_initiative_label.text = "Iniziativa: %d  |  Mana: %d/%d" % [p.initiative, p.mana, p.max_mana]
+	player_deck_label.text = "Mazzo: %d/%d" % [p.deck.remaining(), p.deck_total]
 	enemy_name_label.text = e.combatant_name
 	enemy_hp_label.text = "HP: %d/%d" % [e.health, e.max_health]
+	enemy_block_label.text = "🛡 %d" % e.block_buffer
+	enemy_block_label.visible = e.block_buffer > 0
 	enemy_initiative_label.text = "Iniziativa: %d" % e.initiative
 
 
@@ -96,6 +121,7 @@ func _on_card_played(combatant: Combatant, card: Card) -> void:
 
 
 func _on_turn_started(combatant: Combatant) -> void:
+	_update_stats()
 	var is_player_turn: bool = GameManager.player != null and combatant == GameManager.player
 	player_name_label.add_theme_color_override(
 		"font_color",
@@ -127,6 +153,11 @@ func _on_healed(combatant: Combatant, amount: int) -> void:
 		_flash_label(hp_label, COLOR_HEAL)
 	if panel:
 		_spawn_floating_text(panel, "+%d" % amount, COLOR_HEAL)
+
+
+func _on_card_drawn(who: Combatant, _card: Card) -> void:
+	if GameManager.player != null and who == GameManager.player:
+		_update_stats()
 
 
 func _hp_label_for(combatant: Combatant) -> Label:
@@ -169,33 +200,42 @@ func _spawn_floating_text(reference: Control, text: String, color: Color) -> voi
 
 func _on_player_turn_started() -> void:
 	_refresh_player_hand()
+	end_turn_button.visible = true
 
 
 func _refresh_player_hand() -> void:
 	_clear_player_hand()
 	if GameManager.player == null:
 		return
+	var mana: int = GameManager.player.mana
 	for c in GameManager.player.hand:
 		var tile: Panel = CardTileScene.instantiate()
 		player_hand_container.add_child(tile)
 		tile.setup(c)
 		tile.clicked.connect(_on_card_tile_clicked)
+		if c.mana_cost > mana:
+			tile.set_interactive(false)
+	player_hand_container.move_child(end_turn_button, -1)
 
 
 func _clear_player_hand() -> void:
 	for child in player_hand_container.get_children():
-		child.queue_free()
+		if child != end_turn_button:
+			child.queue_free()
 
 
 func _on_card_tile_clicked(card: Card) -> void:
-	# Disabilita le tile per evitare doppio click in attesa della risoluzione
-	for child in player_hand_container.get_children():
-		if child.has_method("set_interactive"):
-			child.set_interactive(false)
+	end_turn_button.visible = false
 	GameManager.play_player_card(card)
 
 
+func _on_end_turn_pressed() -> void:
+	end_turn_button.visible = false
+	GameManager.skip_player_turn()
+
+
 func _on_combat_ended(winner: Combatant) -> void:
+	end_turn_button.visible = false
 	combat_log_text.append_text("\n🏆 Vince %s!" % winner.combatant_name)
 	_clear_player_hand()
 	_show_game_over(winner)

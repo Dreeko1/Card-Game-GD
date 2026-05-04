@@ -6,8 +6,14 @@ var max_health: int
 var health: int
 var initiative: int
 var deck: Deck
+var deck_total: int = 0
 var deck_profile: String = ""
 var hand: Array[Card] = []
+var mana: int = 0
+var max_mana: int = 0
+var attack_bonus: int = 0
+var block_buffer: int = 0
+var damage_taken_bonus: int = 0
 
 
 func _init(p_name: String, p_max_health: int, p_initiative: int) -> void:
@@ -36,6 +42,12 @@ func draw_card() -> Card:
 	if card:
 		hand.append(card)
 	return card
+
+
+func start_turn(turn_number: int) -> void:
+	max_mana = min(turn_number, 10)
+	mana = max_mana
+	block_buffer = 0
 
 
 func status() -> String:

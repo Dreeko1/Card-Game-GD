@@ -4,9 +4,6 @@ signal clicked(card: Card)
 
 @onready var label: Label = $Label
 
-const COLOR_RED   := Color(1.0, 0.2, 0.2)
-const COLOR_WHITE := Color(1.0, 1.0, 1.0)
-
 const HOVER_SCALE    := Vector2(1.08, 1.08)
 const HOVER_DURATION := 0.12
 
@@ -23,12 +20,20 @@ func _ready() -> void:
 
 func setup(p_card: Card) -> void:
 	card = p_card
-	label.text = "%s\n\n%s" % [card.card_name, card.description()]
-	var red_suits := [Card.Suit.CUORI, Card.Suit.QUADRI]
-	var color: Color = COLOR_RED if card.suit in red_suits else COLOR_WHITE
-	label.add_theme_color_override("font_color", color)
+	label.text = "%s\n\n%s\n%d mana" % [card.card_name, card.description, card.mana_cost]
+	label.add_theme_color_override("font_color", _color_for_type(card.type))
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+
+func _color_for_type(p_type: Card.Type) -> Color:
+	match p_type:
+		Card.Type.ATTACK: return Color(1.0, 0.35, 0.35)
+		Card.Type.BLOCK:  return Color(0.4, 0.7, 1.0)
+		Card.Type.HEAL:   return Color(0.45, 1.0, 0.55)
+		Card.Type.BUFF:   return Color(1.0, 0.92, 0.45)
+		Card.Type.DEBUFF: return Color(0.9, 0.5, 1.0)
+	return Color(1.0, 1.0, 1.0)
 
 
 func set_interactive(value: bool) -> void:

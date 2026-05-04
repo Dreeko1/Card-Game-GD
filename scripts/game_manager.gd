@@ -94,12 +94,14 @@ func _process_combatant(index: int) -> void:
 	if current_state != State.PLAYING:
 		return
 	if index >= turn_order.size():
+		_end_turn()
 		_begin_turn()
 		return
 	var combatant: Combatant = turn_order[index]
 	if not combatant.is_alive():
 		_process_combatant(index + 1)
 		return
+	combatant.start_turn(current_turn)
 	_ensure_hand(combatant)
 	if combatant.hand.is_empty():
 		_process_combatant(index + 1)
@@ -117,15 +119,44 @@ func _process_combatant(index: int) -> void:
 		_resolve_card_play(combatant, card, index)
 
 
+func skip_player_turn() -> void:
+	if current_state != State.PLAYING:
+		return
+	combat_log.emit("%s passa il turno." % player.combatant_name)
+	_finish_player_turn()
+
+
 func play_player_card(card: Card) -> void:
 	if current_state != State.PLAYING:
 		return
 	if player == null or not player.hand.has(card):
 		return
-	var index: int = turn_order.find(player)
-	if index == -1:
+	if player.mana < card.mana_cost:
+		combat_log.emit("Mana insufficiente per %s! (%d/%d mana)" % [card.card_name, player.mana, card.mana_cost])
+		player_turn_started.emit()
 		return
-	_resolve_card_play(player, card, index)
+	player.hand.erase(card)
+	combat_log.emit("%s gioca: %s" % [player.combatant_name, str(card)])
+	card_played.emit(player, card)
+	_apply_card(player, enemy, card)
+	if current_state != State.PLAYING:
+		return
+	_ensure_hand(player)
+	if _player_has_playable_card():
+		player_turn_started.emit()
+	else:
+		_finish_player_turn()
+
+
+func _player_has_playable_card() -> bool:
+	for card in player.hand:
+		if player.mana >= card.mana_cost:
+			return true
+	return false
+
+
+func _finish_player_turn() -> void:
+	_process_combatant(turn_order.find(player) + 1)
 
 
 func _resolve_card_play(combatant: Combatant, card: Card, index: int) -> void:
@@ -162,34 +193,52 @@ func _reshuffle_deck(combatant: Combatant) -> void:
 
 func _cpu_choose_card(combatant: Combatant) -> Card:
 	var hp_percent: float = float(combatant.health) / float(combatant.max_health)
-	if combatant.combatant_name == "Troll" and hp_percent < 0.4:
+	if hp_percent < 0.4:
 		for card in combatant.hand:
-			if card.effect_type == Card.EffectType.HEAL or card.effect_type == Card.EffectType.BUFF:
+			if card.type == Card.Type.HEAL or card.type == Card.Type.BLOCK:
 				return card
 	var best: Card = combatant.hand[0]
 	for card in combatant.hand:
-		if card.effect_type == Card.EffectType.DAMAGE and card.effect_value > best.effect_value:
+		if card.type == Card.Type.ATTACK and card.value > best.value:
 			best = card
 	return best
 
 
 func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
-	match card.effect_type:
-		Card.EffectType.DAMAGE:
-			apply_damage(user, target, card.effect_value)
-		Card.EffectType.HEAL:
+	user.mana -= card.mana_cost
+	match card.type:
+		Card.Type.ATTACK:
+			var total_damage: int = card.value + user.attack_bonus
+			var absorbed: int = target.block_buffer
+			var final_damage: int = max(0, total_damage - absorbed)
+			target.block_buffer = max(0, absorbed - total_damage)
+			if final_damage > 0:
+				apply_damage(user, target, final_damage)
+			else:
+				combat_log.emit("%s assorbe tutto il danno!" % target.combatant_name)
+		Card.Type.BLOCK:
+			user.block_buffer += card.value
+			combat_log.emit("%s si difende! (Blocco: %d)" % [user.combatant_name, user.block_buffer])
+		Card.Type.HEAL:
 			var before: int = user.health
-			user.heal(card.effect_value)
+			user.heal(card.value)
 			var actual: int = user.health - before
 			if actual > 0:
 				healed.emit(user, actual)
-			combat_log.emit("%s si cura di %d HP (HP: %d/%d)" % [user.combatant_name, card.effect_value, user.health, user.max_health])
-		Card.EffectType.BUFF:
-			user.initiative += card.effect_value
-			combat_log.emit("%s ottiene +%d iniziativa" % [user.combatant_name, card.effect_value])
-		Card.EffectType.DEBUFF:
-			target.initiative = max(1, target.initiative - card.effect_value)
-			combat_log.emit("%s perde %d iniziativa" % [target.combatant_name, card.effect_value])
+			combat_log.emit("%s si cura di %d HP! (HP: %d/%d)" % [user.combatant_name, card.value, user.health, user.max_health])
+		Card.Type.BUFF:
+			user.attack_bonus += card.value
+			combat_log.emit("%s potenzia l'attacco di +%d per 1 turno!" % [user.combatant_name, card.value])
+		Card.Type.DEBUFF:
+			target.damage_taken_bonus += card.value
+			combat_log.emit("%s indebolisce %s di %d!" % [user.combatant_name, target.combatant_name, card.value])
+
+
+func _end_turn() -> void:
+	player.attack_bonus = 0
+	player.damage_taken_bonus = 0
+	enemy.attack_bonus = 0
+	enemy.damage_taken_bonus = 0
 
 
 func get_first_attacker() -> Combatant:

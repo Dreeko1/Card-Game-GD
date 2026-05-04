@@ -24,18 +24,24 @@ static func build_combatant(type: Type) -> Combatant:
 	c.deck_profile = d["deck_profile"]
 	c.deck = _build_deck(c.deck_profile)
 	c.deck.shuffle()
+	c.deck_total = c.deck.remaining()
 	return c
 
 static func _build_deck(profile: String) -> Deck:
 	var deck := Deck.new()
-	deck.cards.clear()
 	match profile:
 		"goblin":
-			_fill(deck, [4,5,4,6,5,4,7,5,6,4], Card.Suit.PICCHE)
+			_add(deck, "Graffiata", Card.Type.ATTACK, 4, 1, 4)
+			_add(deck, "Morso",     Card.Type.ATTACK, 6, 2, 3)
+			_add(deck, "Urlo",      Card.Type.DEBUFF, 2, 1, 2)
+			_add(deck, "Fuga",      Card.Type.BLOCK,  3, 1, 1)
 		"troll":
-			_fill(deck, [7,8,9,8,7,1,2,9,8,7], Card.Suit.PICCHE)
+			_add(deck, "Mazzata",    Card.Type.ATTACK, 10, 3, 3)
+			_add(deck, "Schianto",   Card.Type.ATTACK,  8, 2, 3)
+			_add(deck, "Pelle Dura", Card.Type.BLOCK,  10, 2, 2)
+			_add(deck, "Ruggito",    Card.Type.DEBUFF,  4, 2, 2)
 	return deck
 
-static func _fill(deck: Deck, values: Array, suit: Card.Suit) -> void:
-	for v in values:
-		deck.cards.append(Card.new(v, suit))
+static func _add(deck: Deck, p_name: String, p_type: Card.Type, p_value: int, p_cost: int, count: int = 1) -> void:
+	for i in count:
+		deck.cards.append(Card.new(p_name, p_type, p_value, p_cost))
