@@ -17,6 +17,7 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 @onready var combat_log_text: RichTextLabel = $GameUI/MainArea/CombatLog
 @onready var enemy_card_played: Label = $GameUI/MainArea/Board/EnemyCardPlayed
 @onready var player_card_played: Label = $GameUI/MainArea/Board/PlayerCardPlayed
+@onready var board: Control = $GameUI/MainArea/Board
 @onready var player_hand_container: HBoxContainer = $GameUI/PlayerHand
 @onready var game_over_overlay: ColorRect = $GameUI/GameOverOverlay
 @onready var result_label: Label = $GameUI/GameOverOverlay/Panel/Margin/VBox/ResultLabel
@@ -31,6 +32,7 @@ var save_button: Button
 var _last_xp_gain: int = 0
 var _last_leveled_up: bool = false
 var _last_new_level: int = 1
+var _enemy_just_played: bool = false
 
 const FLASH_DURATION := 0.35
 const FLOAT_DURATION := 0.9
@@ -184,10 +186,13 @@ func _on_combat_log(message: String) -> void:
 
 
 func _on_card_played(combatant: Combatant, card: Card) -> void:
-	if GameManager.player != null and combatant == GameManager.player:
+	var is_player := GameManager.player != null and combatant == GameManager.player
+	if is_player:
 		player_card_played.text = "Giocatore: %s" % str(card)
 	else:
 		enemy_card_played.text = "Nemico: %s" % str(card)
+		_enemy_just_played = true
+	_animate_card_played(card, is_player)
 
 
 func _on_turn_started(combatant: Combatant) -> void:
@@ -268,6 +273,34 @@ func _spawn_floating_text(reference: Control, text: String, color: Color) -> voi
 	get_tree().create_timer(FLOAT_DURATION + 0.05).timeout.connect(lbl.queue_free)
 
 
+func _animate_card_played(card: Card, is_player: bool) -> void:
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(120, 80)
+	var label := Label.new()
+	label.text = str(card)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.anchor_right = 1.0
+	label.anchor_bottom = 1.0
+	label.add_theme_font_size_override("font_size", 14)
+	panel.add_child(label)
+	panel.modulate.a = 0.0
+	board.add_child(panel)
+	await get_tree().process_frame
+	var pw := panel.size.x if panel.size.x > 0 else 120.0
+	var ph := panel.size.y if panel.size.y > 0 else 80.0
+	var center_y := board.size.y / 2.0 - ph / 2.0
+	if is_player:
+		panel.position = Vector2(board.size.x * 0.65 - pw / 2.0, center_y)
+	else:
+		panel.position = Vector2(board.size.x * 0.35 - pw / 2.0, center_y)
+	var tw := create_tween()
+	tw.tween_property(panel, "modulate:a", 0.8, 0.3)
+	tw.tween_interval(0.5)
+	tw.tween_property(panel, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(panel.queue_free)
+
+
 func _on_xp_gained(amount: int, leveled_up: bool, new_level: int) -> void:
 	_last_xp_gain = amount
 	_last_leveled_up = leveled_up
@@ -275,6 +308,9 @@ func _on_xp_gained(amount: int, leveled_up: bool, new_level: int) -> void:
 
 
 func _on_player_turn_started() -> void:
+	if _enemy_just_played:
+		_enemy_just_played = false
+		await get_tree().create_timer(0.75).timeout
 	_refresh_player_hand()
 	end_turn_button.visible = true
 	save_button.visible = true
