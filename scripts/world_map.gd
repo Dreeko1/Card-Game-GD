@@ -5,15 +5,13 @@ const ENCOUNTER_RADIUS := 70.0
 const WORLD_BOUNDS     := Rect2(-700.0, -500.0, 1400.0, 1000.0)
 const PLAYER_START     := Vector2(0.0, 460.0)
 
-# 6 nodi su 3 zone: zona 1 (sud), zona 2 (centro), zona 3 (nord/boss).
-# Le posizioni Y decrescenti simulano la profondità isometrica.
 const NODE_WORLD_POS: Array[Vector2] = [
-	Vector2(-200.0,  320.0),   # 0 — zona 1 sinistra
-	Vector2( 200.0,  320.0),   # 1 — zona 1 destra
-	Vector2(-320.0,   60.0),   # 2 — zona 2 sinistra
-	Vector2(   0.0,  -10.0),   # 3 — zona 2 centro
-	Vector2( 320.0,   60.0),   # 4 — zona 2 destra
-	Vector2(   0.0, -280.0),   # 5 — zona 3 boss
+	Vector2(-280.0,  380.0),   # 0 — zona 1 sinistra
+	Vector2( 300.0,  350.0),   # 1 — zona 1 destra
+	Vector2(-380.0,   60.0),   # 2 — zona 2 sinistra
+	Vector2( 120.0,   20.0),   # 3 — zona 2 centro
+	Vector2( 350.0,  120.0),   # 4 — zona 2 destra
+	Vector2( -60.0, -300.0),   # 5 — zona 3 boss
 ]
 
 const ZONE_LABELS := ["Zona 1 — Bosco", "Zona 2 — Pianura Oscura", "Zona 3 — Fortezza"]
@@ -33,7 +31,7 @@ func _ready() -> void:
 	_setup_tilemap()
 	_setup_background()
 	_setup_zone_bands()
-	_setup_paths()
+	_setup_environment()
 	_setup_enemy_markers()
 	_setup_player()
 	_setup_hud()
@@ -58,18 +56,12 @@ func _handle_movement() -> void:
 	var dir := Vector2(
 		float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
 		float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
-	)
-	# Converti da schermo a isometrico
-	var iso_dir := Vector2(
-		dir.x - dir.y,
-		(dir.x + dir.y) * 0.5
 	).normalized()
-	_player.velocity = iso_dir * PLAYER_SPEED
+	_player.velocity = dir * PLAYER_SPEED
 	_player.move_and_slide()
-	var pad := Vector2(20.0, 20.0)
 	_player.position = _player.position.clamp(
-		WORLD_BOUNDS.position + pad,
-		WORLD_BOUNDS.end - pad
+		WORLD_BOUNDS.position + Vector2(20, 20),
+		WORLD_BOUNDS.end - Vector2(20, 20)
 	)
 
 
@@ -173,19 +165,59 @@ func _setup_zone_bands() -> void:
 		add_child(lbl)
 
 
-func _setup_paths() -> void:
-	for node: MapNodeData in MapManager.nodes:
-		var from: Vector2 = NODE_WORLD_POS[node.id]
-		for conn_id: int in node.connections:
-			var line := Line2D.new()
-			line.add_point(from)
-			line.add_point(NODE_WORLD_POS[conn_id])
-			line.width = 8.0
-			line.default_color = Color(0.45, 0.38, 0.28, 0.9)
-			line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-			line.end_cap_mode   = Line2D.LINE_CAP_ROUND
-			line.z_index = -500
-			add_child(line)
+func _setup_environment() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42317
+
+	var blocked: Array[Vector2] = NODE_WORLD_POS.duplicate()
+	blocked.append(PLAYER_START)
+	var placed: Array[Vector2] = []
+
+	var attempts := 0
+	while placed.size() < 25 and attempts < 600:
+		attempts += 1
+		var pos := Vector2(
+			rng.randf_range(WORLD_BOUNDS.position.x + 80.0, WORLD_BOUNDS.end.x - 80.0),
+			rng.randf_range(WORLD_BOUNDS.position.y + 80.0, WORLD_BOUNDS.end.y - 80.0)
+		)
+		var ok := true
+		for b: Vector2 in blocked:
+			if pos.distance_to(b) < 110.0:
+				ok = false
+				break
+		if ok:
+			for p: Vector2 in placed:
+				if pos.distance_to(p) < 60.0:
+					ok = false
+					break
+		if not ok:
+			continue
+
+		placed.append(pos)
+		var env := Node2D.new()
+		env.position = pos
+		env.z_index = int(pos.y)
+		add_child(env)
+
+		var vis := Polygon2D.new()
+		if rng.randf() < 0.62:
+			# albero
+			vis.polygon = PackedVector2Array([
+				Vector2(  0.0, -28.0),
+				Vector2( 14.0,  10.0),
+				Vector2(-14.0,  10.0),
+			])
+			vis.color = Color(0.10, 0.28, 0.08)
+		else:
+			# roccia
+			vis.polygon = PackedVector2Array([
+				Vector2(-12.0, -7.0),
+				Vector2( 12.0, -7.0),
+				Vector2( 12.0,  7.0),
+				Vector2(-12.0,  7.0),
+			])
+			vis.color = Color(0.44, 0.44, 0.50)
+		env.add_child(vis)
 
 
 func _octagon(r: float) -> PackedVector2Array:
