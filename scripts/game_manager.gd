@@ -31,6 +31,7 @@ const XP_REWARDS: Dictionary = {
 var current_state: State = State.IDLE
 var player: Combatant
 var enemy: Combatant
+var run_reward_cards: Array[Dictionary] = []
 var current_turn: int = 0
 var turn_order: Array[Combatant] = []
 var player_class: CharacterClass.Type
@@ -53,7 +54,7 @@ func _ready() -> void:
 func new_game(type: CharacterClass.Type = CharacterClass.Type.GUERRIERO, e_type: EnemyData.Type = EnemyData.Type.GOBLIN) -> void:
 	player_class = type
 	enemy_type = e_type
-	SaveManager.clear_unlocked_cards()
+	run_reward_cards = []
 	player = CharacterClass.build_combatant(type)
 	_apply_meta_to_player(true)
 	enemy = EnemyData.build_combatant(e_type)
@@ -303,6 +304,7 @@ func save_game() -> void:
 			"turn": current_turn,
 			"map_mode": map_mode,
 			"map_current_node_id": map_current_node_id,
+			"reward_cards": run_reward_cards,
 		})
 
 
@@ -314,6 +316,7 @@ func load_game() -> void:
 	enemy_type = data.get("enemy_type", EnemyData.Type.GOBLIN)
 	map_mode = data.get("map_mode", false)
 	map_current_node_id = data.get("map_current_node_id", -1)
+	run_reward_cards = data.get("reward_cards", [])
 	player = CharacterClass.build_combatant(player_class)
 	_apply_meta_to_player(false)
 	player.health = data.get("player_hp", player.max_health)
@@ -336,7 +339,7 @@ func _apply_meta_to_player(reset_hp: bool) -> void:
 
 
 func _add_unlocked_cards_to(combatant: Combatant) -> void:
-	for card_data in SaveManager.load_unlocked_cards():
+	for card_data in run_reward_cards:
 		var c := Card.new(
 			card_data["name"],
 			card_data["type"] as Card.Type,

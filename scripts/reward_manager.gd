@@ -56,12 +56,15 @@ func generate_rewards(count: int) -> Array:
 func apply_reward(option: Dictionary) -> void:
 	if option.reward_type == TYPE_CARD:
 		var d: Dictionary = option.data
-		SaveManager.unlock_card({
-			"name": d.name,
-			"type": int(d.type),
-			"value": d.value,
-			"mana_cost": d.mana_cost,
-		})
+		if GameManager.player != null:
+			var c := Card.new(d.name, d.type as Card.Type, d.value, d.mana_cost)
+			GameManager.player.deck.add_card(c)
+			GameManager.run_reward_cards.append({
+				"name": d.name,
+				"type": int(d.type),
+				"value": d.value,
+				"mana_cost": d.mana_cost,
+			})
 	elif option.reward_type == TYPE_BUFF:
 		SaveManager.apply_perm_buff(option.data.kind, option.data.amount)
 
