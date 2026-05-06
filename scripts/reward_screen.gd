@@ -20,4 +20,8 @@ func _create_reward_button(option: Dictionary) -> void:
 
 func _on_reward_chosen(option: Dictionary) -> void:
 	RewardManager.apply_reward(option)
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if GameManager.map_mode and GameManager.map_current_node_id >= 0:
+		MapManager.complete_node(GameManager.map_current_node_id)
+		get_tree().change_scene_to_file("res://scenes/world_map.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")

@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 GameManager="*res://scripts/game_manager.gd"
 SaveManager="*res://scripts/save_manager.gd"
 RewardManager="*res://scripts/reward_manager.gd"
+MapManager="*res://scripts/map_manager.gd"
 
 [gui]
 

@@ -38,6 +38,10 @@ var enemy_type: EnemyData.Type
 var player_level: int = 1
 var player_xp: int = 0
 var pending_resume: bool = false
+var map_mode: bool = false
+var pending_combat: bool = false
+var map_enemy_type: EnemyData.Type = EnemyData.Type.GOBLIN
+var map_current_node_id: int = -1
 
 
 func _ready() -> void:
@@ -296,6 +300,8 @@ func save_game() -> void:
 			"enemy_type": int(enemy_type),
 			"enemy_hp": enemy.health,
 			"turn": current_turn,
+			"map_mode": map_mode,
+			"map_current_node_id": map_current_node_id,
 		})
 
 
@@ -305,6 +311,8 @@ func load_game() -> void:
 		return
 	player_class = data.get("player_class", CharacterClass.Type.GUERRIERO)
 	enemy_type = data.get("enemy_type", EnemyData.Type.GOBLIN)
+	map_mode = data.get("map_mode", false)
+	map_current_node_id = data.get("map_current_node_id", -1)
 	player = CharacterClass.build_combatant(player_class)
 	_apply_meta_to_player(false)
 	player.health = data.get("player_hp", player.max_health)

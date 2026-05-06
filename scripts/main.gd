@@ -64,8 +64,17 @@ func _ready() -> void:
 	player_stats_panel.add_child(player_xp_label)
 	_create_save_button()
 
-	if GameManager.pending_resume:
+	if GameManager.map_mode and GameManager.pending_combat:
+		GameManager.pending_combat = false
+		class_selection.visible = false
+		game_ui.visible = true
+		_clear_player_hand()
+		_reset_visual_state()
+		GameManager.new_game(GameManager.player_class, GameManager.map_enemy_type)
+	elif GameManager.pending_resume:
 		GameManager.pending_resume = false
+		if SaveManager.has_map():
+			MapManager.load_map()
 		class_selection.visible = false
 		game_ui.visible = true
 		GameManager.load_game()
@@ -104,10 +113,18 @@ func _on_restart_pressed() -> void:
 	if _last_xp_gain > 0:
 		get_tree().change_scene_to_file("res://scenes/reward_screen.tscn")
 	else:
+		if GameManager.map_mode:
+			GameManager.map_mode = false
+			SaveManager.clear_map()
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 
 
 func _select_class(type: CharacterClass.Type) -> void:
+	if GameManager.map_mode:
+		GameManager.player_class = type
+		MapManager.generate_new_map()
+		get_tree().change_scene_to_file("res://scenes/world_map.tscn")
+		return
 	class_selection.visible = false
 	game_ui.visible = true
 	var random_enemy: EnemyData.Type = EnemyData.Type.values().pick_random()

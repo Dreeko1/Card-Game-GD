@@ -90,3 +90,40 @@ func load_unlocked_cards() -> Array:
 	if cfg.load(SAVE_PATH) != OK:
 		return []
 	return cfg.get_value("cards", "unlocked", [])
+
+
+func save_map_data(node_data: Array, cleared: bool) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("map", "exists", true)
+	cfg.set_value("map", "cleared", cleared)
+	cfg.set_value("map", "nodes", node_data)
+	cfg.save(SAVE_PATH)
+
+
+func load_map_data() -> Dictionary:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return {}
+	if not cfg.get_value("map", "exists", false):
+		return {}
+	return {
+		"nodes": cfg.get_value("map", "nodes", []),
+		"cleared": cfg.get_value("map", "cleared", false),
+	}
+
+
+func has_map() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return false
+	return cfg.get_value("map", "exists", false) and \
+		not cfg.get_value("map", "cleared", false)
+
+
+func clear_map() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if cfg.has_section("map"):
+		cfg.erase_section("map")
+	cfg.save(SAVE_PATH)

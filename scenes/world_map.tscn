@@ -1,0 +1,66 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world_map.gd" id="1_wmap"]
+
+[node name="WorldMap" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_wmap")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.1, 1)
+
+[node name="HUD" type="Panel" parent="."]
+layout_mode = 1
+anchor_right = 1.0
+offset_bottom = 58.0
+grow_horizontal = 2
+
+[node name="HBox" type="HBoxContainer" parent="HUD"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 12.0
+offset_right = -12.0
+theme_override_constants/separation = 12
+
+[node name="AbandonBtn" type="Button" parent="HUD/HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(130, 38)
+size_flags_vertical = 4
+text = "Abbandona"
+
+[node name="TitleLabel" type="Label" parent="HUD/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Mappa dell'Avventura"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="PlayerInfoLabel" type="Label" parent="HUD/HBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MapContainer" type="Control" parent="."]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 58.0
+grow_horizontal = 2
+grow_vertical = 2
