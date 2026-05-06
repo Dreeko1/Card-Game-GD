@@ -20,3 +20,7 @@ func remaining() -> int:
 
 func is_empty() -> bool:
 	return cards.is_empty()
+
+
+func add_card(card: Card) -> void:
+	cards.append(card)

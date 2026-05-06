@@ -101,7 +101,10 @@ func _on_save_pressed() -> void:
 
 
 func _on_restart_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if _last_xp_gain > 0:
+		get_tree().change_scene_to_file("res://scenes/reward_screen.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 
 
 func _select_class(type: CharacterClass.Type) -> void:
@@ -306,12 +309,14 @@ func _show_game_over(winner: Combatant) -> void:
 		if _last_leveled_up:
 			xp_text += "  ⬆  Livello %d!" % _last_new_level
 		winner_label.text = "Hai sconfitto %s.%s" % [enemy_name, xp_text]
+		restart_button.text = "Scegli Ricompensa"
 	else:
 		result_label.text = "SCONFITTA"
 		result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 		winner_label.text = "Sei stato sconfitto da %s." % winner.combatant_name
-	_last_xp_gain = 0
-	_last_leveled_up = false
+		restart_button.text = "Menu Principale"
+		_last_xp_gain = 0
+		_last_leveled_up = false
 	game_over_overlay.modulate.a = 0.0
 	game_over_overlay.visible = true
 	var tw: Tween = create_tween()

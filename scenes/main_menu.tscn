@@ -59,6 +59,11 @@ layout_mode = 2
 custom_minimum_size = Vector2(260, 52)
 text = "Riprendi"
 
+[node name="BtnMerchant" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 52)
+text = "Mercante"
+
 [node name="BtnQuit" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(260, 52)

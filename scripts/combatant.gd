@@ -14,6 +14,8 @@ var max_mana: int = 0
 var attack_bonus: int = 0
 var block_buffer: int = 0
 var damage_taken_bonus: int = 0
+var perm_attack_bonus: int = 0
+var perm_block_bonus: int = 0
 
 
 func _init(p_name: String, p_max_health: int, p_initiative: int) -> void:

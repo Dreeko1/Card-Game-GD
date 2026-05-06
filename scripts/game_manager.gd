@@ -44,6 +44,7 @@ func new_game(type: CharacterClass.Type = CharacterClass.Type.GUERRIERO, e_type:
 	player_class = type
 	enemy_type = e_type
 	player = CharacterClass.build_combatant(type)
+	_apply_meta_to_player(true)
 	enemy = EnemyData.build_combatant(e_type)
 
 	_set_state(State.PLAYING)
@@ -221,7 +222,7 @@ func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
 	user.mana -= card.mana_cost
 	match card.type:
 		Card.Type.ATTACK:
-			var total_damage: int = card.value + user.attack_bonus
+			var total_damage: int = card.value + user.attack_bonus + user.perm_attack_bonus
 			var absorbed: int = target.block_buffer
 			var final_damage: int = max(0, total_damage - absorbed)
 			target.block_buffer = max(0, absorbed - total_damage)
@@ -230,7 +231,7 @@ func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
 			else:
 				combat_log.emit("%s assorbe tutto il danno!" % target.combatant_name)
 		Card.Type.BLOCK:
-			user.block_buffer += card.value
+			user.block_buffer += card.value + user.perm_block_bonus
 			combat_log.emit("%s si difende! (Blocco: %d)" % [user.combatant_name, user.block_buffer])
 		Card.Type.HEAL:
 			var before: int = user.health
@@ -299,12 +300,35 @@ func load_game() -> void:
 	player_class = data.get("player_class", CharacterClass.Type.GUERRIERO)
 	enemy_type = data.get("enemy_type", EnemyData.Type.GOBLIN)
 	player = CharacterClass.build_combatant(player_class)
+	_apply_meta_to_player(false)
 	player.health = data.get("player_hp", player.max_health)
 	enemy = EnemyData.build_combatant(enemy_type)
 	enemy.health = data.get("enemy_hp", enemy.max_health)
 	_set_state(State.PLAYING)
 	_print_status()
 	start_combat()
+
+
+func _apply_meta_to_player(reset_hp: bool) -> void:
+	var buffs := SaveManager.load_buffs()
+	player.perm_attack_bonus = buffs.get("attack", 0)
+	player.perm_block_bonus = buffs.get("block", 0)
+	player.max_health += buffs.get("hp", 0)
+	if reset_hp:
+		player.health = player.max_health
+	_add_unlocked_cards_to(player)
+
+
+func _add_unlocked_cards_to(combatant: Combatant) -> void:
+	for card_data in SaveManager.load_unlocked_cards():
+		var c := Card.new(
+			card_data["name"],
+			card_data["type"] as Card.Type,
+			card_data["value"],
+			card_data["mana_cost"]
+		)
+		combatant.deck.add_card(c)
+	combatant.deck.shuffle()
 
 
 func _set_state(new_state: State) -> void:

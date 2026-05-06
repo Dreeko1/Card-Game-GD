@@ -55,3 +55,38 @@ func has_run() -> bool:
 	if cfg.load(SAVE_PATH) != OK:
 		return false
 	return cfg.get_value("run", "in_progress", false)
+
+
+func load_buffs() -> Dictionary:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return {"attack": 0, "block": 0, "hp": 0}
+	return {
+		"attack": cfg.get_value("buffs", "attack", 0),
+		"block": cfg.get_value("buffs", "block", 0),
+		"hp": cfg.get_value("buffs", "hp", 0),
+	}
+
+
+func apply_perm_buff(kind: String, amount: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var current: int = cfg.get_value("buffs", kind, 0)
+	cfg.set_value("buffs", kind, current + amount)
+	cfg.save(SAVE_PATH)
+
+
+func unlock_card(card_data: Dictionary) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var existing: Array = cfg.get_value("cards", "unlocked", [])
+	existing.append(card_data)
+	cfg.set_value("cards", "unlocked", existing)
+	cfg.save(SAVE_PATH)
+
+
+func load_unlocked_cards() -> Array:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return []
+	return cfg.get_value("cards", "unlocked", [])
