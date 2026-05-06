@@ -14,7 +14,7 @@ const NODE_WORLD_POS: Array[Vector2] = [
 	Vector2( -60.0, -300.0),   # 5 — zona 3 boss
 ]
 
-const ZONE_LABELS := ["Zona 1 — Bosco", "Zona 2 — Pianura Oscura", "Zona 3 — Fortezza"]
+const MERCHANT_POS  := Vector2(150.0, 380.0)   # PLAYER_START + Vector2(150, -80)
 
 @onready var _tilemap: TileMapLayer = $TileMapLayer
 
@@ -24,6 +24,7 @@ var _prompt_label: Label
 var _player_info_label: Label
 var _enemy_markers: Dictionary = {}
 var _near_node_id: int = -1
+var _near_merchant: bool = false
 var _hud_layer: CanvasLayer
 
 
@@ -32,6 +33,7 @@ func _ready() -> void:
 	_setup_background()
 	_setup_zone_bands()
 	_setup_environment()
+	_setup_merchant_marker()
 	_setup_enemy_markers()
 	_setup_player()
 	_setup_hud()
@@ -48,7 +50,9 @@ func _physics_process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.keycode == KEY_E and event.pressed and not event.echo:
-		if _near_node_id >= 0:
+		if _near_merchant:
+			get_tree().change_scene_to_file("res://scenes/merchant.tscn")
+		elif _near_node_id >= 0:
 			_trigger_combat(_near_node_id)
 
 
@@ -67,6 +71,14 @@ func _handle_movement() -> void:
 
 func _check_encounters() -> void:
 	_near_node_id = -1
+	_near_merchant = false
+
+	if _player.position.distance_to(MERCHANT_POS) < ENCOUNTER_RADIUS:
+		_near_merchant = true
+		_prompt_label.text = "[ E ]  Visita il Mercante"
+		_prompt_label.visible = true
+		return
+
 	for id: int in _enemy_markers:
 		var node := MapManager.get_node_by_id(id)
 		if node == null or node.state != MapNodeData.State.AVAILABLE:
@@ -156,14 +168,6 @@ func _setup_zone_bands() -> void:
 		poly.z_index = -1000
 		add_child(poly)
 
-		var lbl := Label.new()
-		lbl.text = ZONE_LABELS[i]
-		lbl.position = Vector2(WORLD_BOUNDS.position.x + 16.0, y_top + 8.0)
-		lbl.add_theme_font_size_override("font_size", 13)
-		lbl.modulate = Color(0.75, 0.75, 0.85)
-		lbl.z_index = -1000
-		add_child(lbl)
-
 
 func _setup_environment() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -199,17 +203,25 @@ func _setup_environment() -> void:
 		env.z_index = int(pos.y)
 		add_child(env)
 
+		var is_tree := rng.randf() < 0.62
 		var vis := Polygon2D.new()
-		if rng.randf() < 0.62:
-			# albero
+		var body := StaticBody2D.new()
+		var col := CollisionShape2D.new()
+		if is_tree:
 			vis.polygon = PackedVector2Array([
 				Vector2(  0.0, -28.0),
 				Vector2( 14.0,  10.0),
 				Vector2(-14.0,  10.0),
 			])
 			vis.color = Color(0.10, 0.28, 0.08)
+			var shape := ConvexPolygonShape2D.new()
+			shape.points = PackedVector2Array([
+				Vector2(  0.0, -28.0),
+				Vector2( 14.0,  10.0),
+				Vector2(-14.0,  10.0),
+			])
+			col.shape = shape
 		else:
-			# roccia
 			vis.polygon = PackedVector2Array([
 				Vector2(-12.0, -7.0),
 				Vector2( 12.0, -7.0),
@@ -217,7 +229,12 @@ func _setup_environment() -> void:
 				Vector2(-12.0,  7.0),
 			])
 			vis.color = Color(0.44, 0.44, 0.50)
+			var shape := RectangleShape2D.new()
+			shape.size = Vector2(24.0, 14.0)
+			col.shape = shape
 		env.add_child(vis)
+		body.add_child(col)
+		env.add_child(body)
 
 
 func _octagon(r: float) -> PackedVector2Array:
@@ -226,6 +243,27 @@ func _octagon(r: float) -> PackedVector2Array:
 		var a := TAU * i / 8.0
 		pts.append(Vector2(cos(a), sin(a)) * r)
 	return pts
+
+
+func _setup_merchant_marker() -> void:
+	var marker := Node2D.new()
+	marker.position = MERCHANT_POS
+	marker.z_index = int(MERCHANT_POS.y)
+	add_child(marker)
+
+	var vis := Polygon2D.new()
+	vis.polygon = _octagon(28.0)
+	vis.color = Color(0.90, 0.72, 0.10)
+	marker.add_child(vis)
+
+	var lbl := Label.new()
+	lbl.text = "Mercante"
+	lbl.position = Vector2(-50.0, 38.0)
+	lbl.custom_minimum_size = Vector2(100.0, 0.0)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.modulate = Color(1.0, 1.0, 1.0)
+	marker.add_child(lbl)
 
 
 func _setup_enemy_markers() -> void:

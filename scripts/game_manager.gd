@@ -53,6 +53,7 @@ func _ready() -> void:
 func new_game(type: CharacterClass.Type = CharacterClass.Type.GUERRIERO, e_type: EnemyData.Type = EnemyData.Type.GOBLIN) -> void:
 	player_class = type
 	enemy_type = e_type
+	SaveManager.clear_unlocked_cards()
 	player = CharacterClass.build_combatant(type)
 	_apply_meta_to_player(true)
 	enemy = EnemyData.build_combatant(e_type)
@@ -331,6 +332,7 @@ func _apply_meta_to_player(reset_hp: bool) -> void:
 	if reset_hp:
 		player.health = player.max_health
 	_add_unlocked_cards_to(player)
+	player.deck_total = player.deck.remaining()
 
 
 func _add_unlocked_cards_to(combatant: Combatant) -> void:

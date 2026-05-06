@@ -92,6 +92,14 @@ func load_unlocked_cards() -> Array:
 	return cfg.get_value("cards", "unlocked", [])
 
 
+func clear_unlocked_cards() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if cfg.has_section("cards"):
+		cfg.erase_section("cards")
+	cfg.save(SAVE_PATH)
+
+
 func save_map_data(node_data: Array, cleared: bool) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
@@ -127,3 +135,8 @@ func clear_map() -> void:
 	if cfg.has_section("map"):
 		cfg.erase_section("map")
 	cfg.save(SAVE_PATH)
+
+
+func clear_all() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(SAVE_PATH)
