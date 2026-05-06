@@ -12,9 +12,15 @@ signal turn_started(combatant: Combatant)
 signal card_played(combatant: Combatant, card: Card)
 signal damage_dealt(target: Combatant, amount: int)
 signal healed(combatant: Combatant, amount: int)
+signal xp_gained(xp_amount: int, leveled_up: bool, new_level: int)
 
 const ENEMY_TURN_DELAY := 0.6
 const HAND_SIZE := 3
+const MAX_LEVEL := 10
+const XP_REWARDS: Dictionary = {
+	EnemyData.Type.GOBLIN: 50,
+	EnemyData.Type.TROLL: 150,
+}
 
 var current_state: State = State.IDLE
 var player: Combatant
@@ -23,11 +29,15 @@ var current_turn: int = 0
 var turn_order: Array[Combatant] = []
 var player_class: CharacterClass.Type
 var enemy_type: EnemyData.Type
+var player_level: int = 1
+var player_xp: int = 0
+var pending_resume: bool = false
 
 
 func _ready() -> void:
-	# Niente auto-start: la partita parte da Main quando il giocatore sceglie la classe.
-	pass
+	var meta := SaveManager.load_meta()
+	player_xp = meta.xp
+	player_level = meta.level
 
 
 func new_game(type: CharacterClass.Type = CharacterClass.Type.GUERRIERO, e_type: EnemyData.Type = EnemyData.Type.GOBLIN) -> void:
@@ -67,6 +77,9 @@ func apply_damage(attacker: Combatant, target: Combatant, amount: int) -> void:
 
 	if not target.is_alive():
 		combat_log.emit("%s è stato sconfitto! Vince %s!" % [target.combatant_name, attacker.combatant_name])
+		if attacker == player:
+			_award_xp()
+		SaveManager.clear_run()
 		combat_ended.emit(attacker)
 		_set_state(State.GAME_OVER)
 
@@ -253,6 +266,45 @@ func _print_status() -> void:
 	print(player.status())
 	print(enemy.status())
 	print("====================")
+
+
+func _award_xp() -> void:
+	var reward: int = XP_REWARDS.get(enemy_type, 50)
+	player_xp += reward
+	var leveled_up := false
+	while player_level < MAX_LEVEL and player_xp >= player_level * 100:
+		player_level += 1
+		leveled_up = true
+		combat_log.emit("⬆ LIVELLO SU! Ora sei Livello %d!" % player_level)
+	SaveManager.save_meta(player_xp, player_level)
+	xp_gained.emit(reward, leveled_up, player_level)
+
+
+func save_game() -> void:
+	SaveManager.save_meta(player_xp, player_level)
+	if current_state == State.PLAYING and player != null and enemy != null:
+		SaveManager.save_run({
+			"player_class": int(player_class),
+			"player_hp": player.health,
+			"enemy_type": int(enemy_type),
+			"enemy_hp": enemy.health,
+			"turn": current_turn,
+		})
+
+
+func load_game() -> void:
+	var data := SaveManager.load_run()
+	if data.is_empty():
+		return
+	player_class = data.get("player_class", CharacterClass.Type.GUERRIERO)
+	enemy_type = data.get("enemy_type", EnemyData.Type.GOBLIN)
+	player = CharacterClass.build_combatant(player_class)
+	player.health = data.get("player_hp", player.max_health)
+	enemy = EnemyData.build_combatant(enemy_type)
+	enemy.health = data.get("enemy_hp", enemy.max_health)
+	_set_state(State.PLAYING)
+	_print_status()
+	start_combat()
 
 
 func _set_state(new_state: State) -> void:

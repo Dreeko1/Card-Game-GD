@@ -25,6 +25,12 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 
 var end_turn_button: Button
 var player_deck_label: Label
+var player_xp_label: Label
+var save_button: Button
+
+var _last_xp_gain: int = 0
+var _last_leveled_up: bool = false
+var _last_new_level: int = 1
 
 const FLASH_DURATION := 0.35
 const FLOAT_DURATION := 0.9
@@ -44,14 +50,26 @@ func _ready() -> void:
 	GameManager.damage_dealt.connect(_on_damage_dealt)
 	GameManager.healed.connect(_on_healed)
 	GameManager.card_drawn.connect(_on_card_drawn)
+	GameManager.xp_gained.connect(_on_xp_gained)
 	$ClassSelection/Button_Guerriero.pressed.connect(_select_class.bind(CharacterClass.Type.GUERRIERO))
 	$ClassSelection/Button_Druido.pressed.connect(_select_class.bind(CharacterClass.Type.DRUIDO))
 	$ClassSelection/Button_Mago.pressed.connect(_select_class.bind(CharacterClass.Type.MAGO))
 	$ClassSelection/Button_Ladro.pressed.connect(_select_class.bind(CharacterClass.Type.LADRO))
+	restart_button.text = "Menu Principale"
 	restart_button.pressed.connect(_on_restart_pressed)
 	_create_end_turn_button()
 	player_deck_label = Label.new()
 	player_stats_panel.add_child(player_deck_label)
+	player_xp_label = Label.new()
+	player_stats_panel.add_child(player_xp_label)
+	_create_save_button()
+
+	if GameManager.pending_resume:
+		GameManager.pending_resume = false
+		class_selection.visible = false
+		game_ui.visible = true
+		GameManager.load_game()
+		_update_stats()
 
 
 func _create_end_turn_button() -> void:
@@ -64,10 +82,26 @@ func _create_end_turn_button() -> void:
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 
 
+func _create_save_button() -> void:
+	save_button = Button.new()
+	save_button.text = "Salva"
+	save_button.custom_minimum_size = Vector2(80, 28)
+	save_button.visible = false
+	player_stats_panel.add_child(save_button)
+	save_button.pressed.connect(_on_save_pressed)
+
+
+func _on_save_pressed() -> void:
+	GameManager.save_game()
+	save_button.text = "Salvato!"
+	get_tree().create_timer(1.2).timeout.connect(func() -> void:
+		if is_instance_valid(save_button):
+			save_button.text = "Salva"
+	)
+
+
 func _on_restart_pressed() -> void:
-	game_over_overlay.visible = false
-	game_ui.visible = false
-	class_selection.visible = true
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 
 
 func _select_class(type: CharacterClass.Type) -> void:
@@ -88,6 +122,10 @@ func _reset_visual_state() -> void:
 	player_name_label.remove_theme_color_override("font_color")
 	enemy_name_label.remove_theme_color_override("font_color")
 	end_turn_button.visible = false
+	save_button.visible = false
+	save_button.text = "Salva"
+	_last_xp_gain = 0
+	_last_leveled_up = false
 
 
 func _update_stats() -> void:
@@ -101,11 +139,20 @@ func _update_stats() -> void:
 	player_block_label.visible = p.block_buffer > 0
 	player_initiative_label.text = "Iniziativa: %d  |  Mana: %d/%d" % [p.initiative, p.mana, p.max_mana]
 	player_deck_label.text = "Mazzo: %d/%d" % [p.deck.remaining(), p.deck_total]
+	_update_xp_label()
 	enemy_name_label.text = e.combatant_name
 	enemy_hp_label.text = "HP: %d/%d" % [e.health, e.max_health]
 	enemy_block_label.text = "🛡 %d" % e.block_buffer
 	enemy_block_label.visible = e.block_buffer > 0
 	enemy_initiative_label.text = "Iniziativa: %d" % e.initiative
+
+
+func _update_xp_label() -> void:
+	if GameManager.player_level >= GameManager.MAX_LEVEL:
+		player_xp_label.text = "Lv.MAX  |  %d XP" % GameManager.player_xp
+	else:
+		var xp_in_level := GameManager.player_xp - (GameManager.player_level - 1) * 100
+		player_xp_label.text = "Lv.%d  |  %d/100 XP" % [GameManager.player_level, xp_in_level]
 
 
 func _on_combat_log(message: String) -> void:
@@ -198,9 +245,16 @@ func _spawn_floating_text(reference: Control, text: String, color: Color) -> voi
 	get_tree().create_timer(FLOAT_DURATION + 0.05).timeout.connect(lbl.queue_free)
 
 
+func _on_xp_gained(amount: int, leveled_up: bool, new_level: int) -> void:
+	_last_xp_gain = amount
+	_last_leveled_up = leveled_up
+	_last_new_level = new_level
+
+
 func _on_player_turn_started() -> void:
 	_refresh_player_hand()
 	end_turn_button.visible = true
+	save_button.visible = true
 
 
 func _refresh_player_hand() -> void:
@@ -236,6 +290,7 @@ func _on_end_turn_pressed() -> void:
 
 func _on_combat_ended(winner: Combatant) -> void:
 	end_turn_button.visible = false
+	save_button.visible = false
 	combat_log_text.append_text("\n🏆 Vince %s!" % winner.combatant_name)
 	_clear_player_hand()
 	_show_game_over(winner)
@@ -247,11 +302,16 @@ func _show_game_over(winner: Combatant) -> void:
 		var enemy_name: String = GameManager.enemy.combatant_name if GameManager.enemy != null else "il nemico"
 		result_label.text = "VITTORIA!"
 		result_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.45))
-		winner_label.text = "Hai sconfitto %s." % enemy_name
+		var xp_text := "\n+%d XP" % _last_xp_gain
+		if _last_leveled_up:
+			xp_text += "  ⬆  Livello %d!" % _last_new_level
+		winner_label.text = "Hai sconfitto %s.%s" % [enemy_name, xp_text]
 	else:
 		result_label.text = "SCONFITTA"
 		result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 		winner_label.text = "Sei stato sconfitto da %s." % winner.combatant_name
+	_last_xp_gain = 0
+	_last_leveled_up = false
 	game_over_overlay.modulate.a = 0.0
 	game_over_overlay.visible = true
 	var tw: Tween = create_tween()

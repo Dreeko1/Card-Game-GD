@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="Carte Peffo"
-run/main_scene="uid://c0hu16nprqur7"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 GameManager="*res://scripts/game_manager.gd"
+SaveManager="*res://scripts/save_manager.gd"
 
 [gui]
 
