@@ -3,18 +3,22 @@ extends Node2D
 const PLAYER_SPEED     := 200.0
 const ENCOUNTER_RADIUS := 70.0
 const WORLD_BOUNDS     := Rect2(-700.0, -500.0, 1400.0, 1000.0)
-const PLAYER_START     := Vector2(0.0, 440.0)
+const PLAYER_START     := Vector2(0.0, 460.0)
 
+# 6 nodi su 3 zone: zona 1 (sud), zona 2 (centro), zona 3 (nord/boss).
+# Le posizioni Y decrescenti simulano la profondità isometrica.
 const NODE_WORLD_POS: Array[Vector2] = [
-	Vector2(-220.0,  300.0),
-	Vector2( 220.0,  300.0),
-	Vector2(-380.0,   50.0),
-	Vector2(   0.0,  -20.0),
-	Vector2( 380.0,   50.0),
-	Vector2(   0.0, -300.0),
+	Vector2(-200.0,  320.0),   # 0 — zona 1 sinistra
+	Vector2( 200.0,  320.0),   # 1 — zona 1 destra
+	Vector2(-320.0,   60.0),   # 2 — zona 2 sinistra
+	Vector2(   0.0,  -10.0),   # 3 — zona 2 centro
+	Vector2( 320.0,   60.0),   # 4 — zona 2 destra
+	Vector2(   0.0, -280.0),   # 5 — zona 3 boss
 ]
 
 const ZONE_LABELS := ["Zona 1 — Bosco", "Zona 2 — Pianura Oscura", "Zona 3 — Fortezza"]
+
+@onready var _tilemap: TileMapLayer = $TileMapLayer
 
 var _player: CharacterBody2D
 var _camera: Camera2D
@@ -26,6 +30,7 @@ var _hud_layer: CanvasLayer
 
 
 func _ready() -> void:
+	_setup_tilemap()
 	_setup_background()
 	_setup_zone_bands()
 	_setup_paths()
@@ -40,6 +45,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	_handle_movement()
 	_check_encounters()
+	_player.z_index = int(_player.position.y)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -53,7 +59,12 @@ func _handle_movement() -> void:
 		float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
 		float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
 	)
-	_player.velocity = dir.normalized() * PLAYER_SPEED
+	# Converti da schermo a isometrico
+	var iso_dir := Vector2(
+		dir.x - dir.y,
+		(dir.x + dir.y) * 0.5
+	).normalized()
+	_player.velocity = iso_dir * PLAYER_SPEED
 	_player.move_and_slide()
 	var pad := Vector2(20.0, 20.0)
 	_player.position = _player.position.clamp(
@@ -84,6 +95,39 @@ func _trigger_combat(node_id: int) -> void:
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
+# Crea un'ImageTexture con un rombo isometrico verde per il terreno placeholder.
+func _make_iso_tile_texture() -> ImageTexture:
+	var img := Image.create(128, 64, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for y in 64:
+		for x in 128:
+			var nx := absf(float(x) / 64.0 - 1.0)
+			var ny := absf(float(y) / 32.0 - 1.0)
+			var d := nx + ny
+			if d <= 1.0:
+				var col := Color(0.22, 0.48, 0.16) if d < 0.88 else Color(0.13, 0.28, 0.09)
+				img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+func _setup_tilemap() -> void:
+	var ts := TileSet.new()
+	ts.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
+	ts.tile_layout = TileSet.TILE_LAYOUT_DIAMOND_DOWN
+	ts.tile_size = Vector2i(128, 64)
+
+	var src := TileSetAtlasSource.new()
+	src.texture = _make_iso_tile_texture()
+	src.texture_region_size = Vector2i(128, 64)
+	src.create_tile(Vector2i(0, 0))
+	var src_id := ts.add_source(src)
+
+	_tilemap.tile_set = ts
+	for col in range(-14, 15):
+		for row in range(-10, 11):
+			_tilemap.set_cell(Vector2i(col, row), src_id, Vector2i(0, 0))
+
+
 func _setup_background() -> void:
 	var bg := Polygon2D.new()
 	bg.polygon = PackedVector2Array([
@@ -92,16 +136,17 @@ func _setup_background() -> void:
 		WORLD_BOUNDS.end,
 		Vector2(WORLD_BOUNDS.position.x, WORLD_BOUNDS.end.y),
 	])
-	bg.color = Color(0.10, 0.15, 0.10)
+	bg.color = Color(0.06, 0.10, 0.06)
+	bg.z_index = -3000
 	add_child(bg)
 
 
 func _setup_zone_bands() -> void:
-	# [y_top, y_bottom, color] — zona 1 in basso, zona 3 in alto
+	# Bande semi-trasparenti sopra le tile: zona 1 (sud) verde, 2 marrone, 3 rossa.
 	var bands: Array = [
-		[100.0,   500.0, Color(0.08, 0.22, 0.08, 0.30)],
-		[-150.0,  100.0, Color(0.22, 0.17, 0.08, 0.30)],
-		[-500.0, -150.0, Color(0.22, 0.08, 0.08, 0.30)],
+		[200.0,  500.0, Color(0.08, 0.22, 0.08, 0.18)],
+		[-150.0, 200.0, Color(0.22, 0.17, 0.08, 0.18)],
+		[-500.0, -150.0, Color(0.22, 0.08, 0.08, 0.18)],
 	]
 	for i in 3:
 		var y_top: float = bands[i][0]
@@ -116,6 +161,7 @@ func _setup_zone_bands() -> void:
 			Vector2(WORLD_BOUNDS.position.x, y_bot),
 		])
 		poly.color = col
+		poly.z_index = -1000
 		add_child(poly)
 
 		var lbl := Label.new()
@@ -123,6 +169,7 @@ func _setup_zone_bands() -> void:
 		lbl.position = Vector2(WORLD_BOUNDS.position.x + 16.0, y_top + 8.0)
 		lbl.add_theme_font_size_override("font_size", 13)
 		lbl.modulate = Color(0.75, 0.75, 0.85)
+		lbl.z_index = -1000
 		add_child(lbl)
 
 
@@ -137,6 +184,7 @@ func _setup_paths() -> void:
 			line.default_color = Color(0.45, 0.38, 0.28, 0.9)
 			line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 			line.end_cap_mode   = Line2D.LINE_CAP_ROUND
+			line.z_index = -500
 			add_child(line)
 
 
@@ -152,6 +200,8 @@ func _setup_enemy_markers() -> void:
 	for node: MapNodeData in MapManager.nodes:
 		var marker := Node2D.new()
 		marker.position = NODE_WORLD_POS[node.id]
+		# Z basato su Y per il corretto ordinamento isometrico.
+		marker.z_index = int(NODE_WORLD_POS[node.id].y)
 		add_child(marker)
 		_enemy_markers[node.id] = marker
 
@@ -187,14 +237,15 @@ func _setup_enemy_markers() -> void:
 func _setup_player() -> void:
 	_player = CharacterBody2D.new()
 	_player.position = PLAYER_START
+	_player.z_index = int(PLAYER_START.y)
 	add_child(_player)
 
+	# Triangolo alto e stretto, adatto alla visuale isometrica.
 	var vis := Polygon2D.new()
 	vis.polygon = PackedVector2Array([
-		Vector2(  0.0, -22.0),
-		Vector2( 14.0,   0.0),
-		Vector2(  0.0,  22.0),
-		Vector2(-14.0,   0.0),
+		Vector2(  0.0, -28.0),
+		Vector2( 10.0,  14.0),
+		Vector2(-10.0,  14.0),
 	])
 	vis.color = Color(0.30, 0.60, 1.0)
 	_player.add_child(vis)
