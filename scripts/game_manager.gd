@@ -18,8 +18,14 @@ const ENEMY_TURN_DELAY := 0.6
 const HAND_SIZE := 3
 const MAX_LEVEL := 10
 const XP_REWARDS: Dictionary = {
-	EnemyData.Type.GOBLIN: 50,
-	EnemyData.Type.TROLL: 150,
+	EnemyData.Type.GOBLIN:    50,
+	EnemyData.Type.SCHELETRO: 60,
+	EnemyData.Type.BANDITO:   75,
+	EnemyData.Type.ORCO:     100,
+	EnemyData.Type.STREGA:    90,
+	EnemyData.Type.TROLL:    150,
+	EnemyData.Type.DRAGO:    200,
+	EnemyData.Type.LICH:     220,
 }
 
 var current_state: State = State.IDLE
