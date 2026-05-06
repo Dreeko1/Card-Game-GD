@@ -235,8 +235,8 @@ func _setup_hud() -> void:
 	margin.add_child(hbox)
 
 	var abandon := Button.new()
-	abandon.text = "Abbandona"
-	abandon.custom_minimum_size = Vector2(130.0, 38.0)
+	abandon.text = "Menu"
+	abandon.custom_minimum_size = Vector2(90.0, 38.0)
 	abandon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	abandon.pressed.connect(_on_abandon)
 	hbox.add_child(abandon)
@@ -274,7 +274,6 @@ func _update_hud() -> void:
 
 func _on_abandon() -> void:
 	GameManager.map_mode = false
-	SaveManager.clear_map()
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 
 
