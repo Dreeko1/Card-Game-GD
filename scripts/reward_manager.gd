@@ -22,28 +22,37 @@ const BUFF_POOL: Array[Dictionary] = [
 
 
 func generate_rewards(count: int) -> Array:
-	var all_options: Array = []
-	for card_data in CARD_POOL:
-		all_options.append({"reward_type": TYPE_CARD, "data": card_data})
-	for buff_data in BUFF_POOL:
-		all_options.append({"reward_type": TYPE_BUFF, "data": buff_data})
-	all_options.shuffle()
+	# Carte di classe per la zona corrente (fino a 2, garantite)
+	var zone := _current_zone()
+	var class_cards: Array = CharacterClass.get_unlock_cards_for_zone(
+		GameManager.player_class, zone
+	).duplicate()
+	class_cards.shuffle()
 
-	# Garantisce almeno 1 carta e 1 buff tra le opzioni
 	var result: Array = []
-	var has_card := false
-	var has_buff := false
-	for option in all_options:
+	for card_data in class_cards:
+		if result.size() >= mini(2, count - 1):  # lascia almeno 1 slot per un buff
+			break
+		result.append({"reward_type": TYPE_CARD, "data": card_data})
+
+	# Pool generico: carte + buff
+	var generic: Array = []
+	for card_data in CARD_POOL:
+		generic.append({"reward_type": TYPE_CARD, "data": card_data})
+	for buff_data in BUFF_POOL:
+		generic.append({"reward_type": TYPE_BUFF, "data": buff_data})
+	generic.shuffle()
+
+	# Garantisce almeno 1 buff tra le opzioni rimanenti
+	for option in generic:
 		if result.size() >= count:
 			break
-		if option.reward_type == TYPE_CARD and not has_card:
+		if option.reward_type == TYPE_BUFF:
 			result.append(option)
-			has_card = true
-		elif option.reward_type == TYPE_BUFF and not has_buff:
-			result.append(option)
-			has_buff = true
+			break
 
-	for option in all_options:
+	# Riempie gli slot restanti con opzioni generiche
+	for option in generic:
 		if result.size() >= count:
 			break
 		if not result.has(option):
@@ -51,6 +60,14 @@ func generate_rewards(count: int) -> Array:
 
 	result.shuffle()
 	return result
+
+
+func _current_zone() -> int:
+	if GameManager.map_mode and GameManager.map_current_node_id >= 0:
+		var node := MapManager.get_node_by_id(GameManager.map_current_node_id)
+		if node != null:
+			return node.zone
+	return 1
 
 
 func apply_reward(option: Dictionary) -> void:

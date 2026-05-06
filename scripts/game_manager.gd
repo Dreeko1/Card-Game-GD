@@ -54,7 +54,8 @@ func _ready() -> void:
 func new_game(type: CharacterClass.Type = CharacterClass.Type.GUERRIERO, e_type: EnemyData.Type = EnemyData.Type.GOBLIN) -> void:
 	player_class = type
 	enemy_type = e_type
-	run_reward_cards = []
+	if not map_mode:
+		run_reward_cards = []
 	player = CharacterClass.build_combatant(type)
 	_apply_meta_to_player(true)
 	enemy = EnemyData.build_combatant(e_type)
@@ -167,7 +168,6 @@ func play_player_card(card: Card) -> void:
 	_apply_card(player, enemy, card)
 	if current_state != State.PLAYING:
 		return
-	_ensure_hand(player)
 	if _player_has_playable_card():
 		player_turn_started.emit()
 	else:
@@ -211,6 +211,19 @@ func _ensure_hand(combatant: Combatant) -> void:
 func _reshuffle_deck(combatant: Combatant) -> void:
 	if combatant == player:
 		combatant.deck = CharacterClass._build_deck(combatant.deck_profile)
+		for card_data in run_reward_cards:
+			combatant.deck.add_card(Card.new(
+				card_data["name"],
+				card_data["type"] as Card.Type,
+				card_data["value"],
+				card_data["mana_cost"]
+			))
+		var hand_names := combatant.hand.map(func(c: Card) -> String: return c.card_name)
+		var deck_names := combatant.deck.cards.map(func(c: Card) -> String: return c.card_name)
+		print("[RESHUFFLE] mazzo: %d %s | mano: %d %s" % [
+			combatant.deck.cards.size(), deck_names,
+			combatant.hand.size(), hand_names,
+		])
 	else:
 		combatant.deck = EnemyData._build_deck(combatant.deck_profile)
 	combatant.deck.shuffle()
@@ -234,7 +247,7 @@ func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
 	user.mana -= card.mana_cost
 	match card.type:
 		Card.Type.ATTACK:
-			var total_damage: int = card.value + user.attack_bonus + user.perm_attack_bonus
+			var total_damage: int = card.value + user.attack_bonus + user.perm_attack_bonus + target.damage_taken_bonus
 			var absorbed: int = target.block_buffer
 			var final_damage: int = max(0, total_damage - absorbed)
 			target.block_buffer = max(0, absorbed - total_damage)
@@ -247,7 +260,7 @@ func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
 			combat_log.emit("%s si difende! (Blocco: %d)" % [user.combatant_name, user.block_buffer])
 		Card.Type.HEAL:
 			var before: int = user.health
-			user.heal(card.value)
+			user.heal(card.value + user.perm_heal_bonus)
 			var actual: int = user.health - before
 			if actual > 0:
 				healed.emit(user, actual)
@@ -257,6 +270,10 @@ func _apply_card(user: Combatant, target: Combatant, card: Card) -> void:
 			combat_log.emit("%s potenzia l'attacco di +%d per 1 turno!" % [user.combatant_name, card.value])
 		Card.Type.DEBUFF:
 			target.damage_taken_bonus += card.value
+			print("[DEBUFF] %s usa %s → %s.damage_taken_bonus = %d" % [
+				user.combatant_name, card.card_name,
+				target.combatant_name, target.damage_taken_bonus
+			])
 			combat_log.emit("%s indebolisce %s di %d!" % [user.combatant_name, target.combatant_name, card.value])
 
 
@@ -331,11 +348,12 @@ func _apply_meta_to_player(reset_hp: bool) -> void:
 	var buffs := SaveManager.load_buffs()
 	player.perm_attack_bonus = buffs.get("attack", 0)
 	player.perm_block_bonus = buffs.get("block", 0)
+	player.perm_heal_bonus = buffs.get("heal", 0)
 	player.max_health += buffs.get("hp", 0)
 	if reset_hp:
 		player.health = player.max_health
 	_add_unlocked_cards_to(player)
-	player.deck_total = player.deck.remaining()
+	player.deck_total = player.deck.cards.size() + player.hand.size()
 
 
 func _add_unlocked_cards_to(combatant: Combatant) -> void:

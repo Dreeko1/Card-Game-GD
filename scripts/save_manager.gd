@@ -65,6 +65,7 @@ func load_buffs() -> Dictionary:
 		"attack": cfg.get_value("buffs", "attack", 0),
 		"block": cfg.get_value("buffs", "block", 0),
 		"hp": cfg.get_value("buffs", "hp", 0),
+		"heal": cfg.get_value("buffs", "heal", 0),
 	}
 
 

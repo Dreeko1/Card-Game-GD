@@ -19,7 +19,20 @@ func _create_reward_button(option: Dictionary) -> void:
 
 
 func _on_reward_chosen(option: Dictionary) -> void:
+	var before: int = GameManager.player.deck.cards.size() if GameManager.player != null else 0
 	RewardManager.apply_reward(option)
+	if option.reward_type == RewardManager.TYPE_CARD and GameManager.player != null:
+		var after: int = GameManager.player.deck.cards.size()
+		GameManager.player.deck_total = after + GameManager.player.hand.size()
+		SaveManager.unlock_card({
+			"name": option.data.name,
+			"type": int(option.data.type),
+			"value": option.data.value,
+			"mana_cost": option.data.mana_cost,
+		})
+		print("Reward carta: %s | deck.cards: %d → %d (+%d)" % [
+			option.data.name, before, after, after - before,
+		])
 	if GameManager.map_mode and GameManager.map_current_node_id >= 0:
 		MapManager.complete_node(GameManager.map_current_node_id)
 		get_tree().change_scene_to_file("res://scenes/world_map.tscn")

@@ -8,13 +8,14 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 @onready var enemy_stats_panel: VBoxContainer = $GameUI/StatsBar/EnemyStats
 @onready var player_name_label: Label = $GameUI/StatsBar/PlayerStats/player_name
 @onready var player_hp_label: Label = $GameUI/StatsBar/PlayerStats/player_hp
-@onready var player_block_label: Label = $GameUI/StatsBar/PlayerStats/player_block
 @onready var player_initiative_label: Label = $GameUI/StatsBar/PlayerStats/player_initiative
 @onready var enemy_name_label: Label = $GameUI/StatsBar/EnemyStats/enemy_name
 @onready var enemy_hp_label: Label = $GameUI/StatsBar/EnemyStats/enemy_hp
 @onready var enemy_block_label: Label = $GameUI/StatsBar/EnemyStats/enemy_block
 @onready var enemy_initiative_label: Label = $GameUI/StatsBar/EnemyStats/enemy_initiative
-@onready var combat_log_text: RichTextLabel = $GameUI/MainArea/CombatLog
+@onready var combat_log_text: RichTextLabel = $GameUI/CombatLogOverlay/CombatLog
+@onready var combat_log_overlay: PanelContainer = $GameUI/CombatLogOverlay
+@onready var buttons_column: VBoxContainer = $GameUI/StatsBar/ButtonsColumn
 @onready var enemy_card_played: Label = $GameUI/MainArea/Board/EnemyCardPlayed
 @onready var player_card_played: Label = $GameUI/MainArea/Board/PlayerCardPlayed
 @onready var board: Control = $GameUI/MainArea/Board
@@ -27,7 +28,11 @@ const CardTileScene := preload("res://scenes/Cardtile.tscn")
 var end_turn_button: Button
 var player_deck_label: Label
 var player_xp_label: Label
+var player_block_label: Label
+var player_attack_bonus_label: Label
+var player_heal_bonus_label: Label
 var save_button: Button
+var log_toggle_button: Button
 
 var _last_xp_gain: int = 0
 var _last_leveled_up: bool = false
@@ -59,14 +64,13 @@ func _ready() -> void:
 	$ClassSelection/Button_Ladro.pressed.connect(_select_class.bind(CharacterClass.Type.LADRO))
 	restart_button.text = "Menu Principale"
 	restart_button.pressed.connect(_on_restart_pressed)
-	_create_end_turn_button()
 	player_deck_label = Label.new()
 	player_deck_label.add_theme_font_size_override("font_size", 11)
 	player_stats_panel.add_child(player_deck_label)
-	player_xp_label = Label.new()
-	player_xp_label.add_theme_font_size_override("font_size", 11)
-	player_stats_panel.add_child(player_xp_label)
-	_create_save_button()
+	_create_xp_save_row()
+	_create_buffs_row()
+	_create_log_toggle_button()
+	_create_end_turn_button()
 
 	if GameManager.map_mode and GameManager.pending_combat:
 		GameManager.pending_combat = false
@@ -89,20 +93,59 @@ func _create_end_turn_button() -> void:
 	end_turn_button = Button.new()
 	end_turn_button.text = "Fine Turno"
 	end_turn_button.visible = false
-	end_turn_button.custom_minimum_size = Vector2(140, 36)
-	end_turn_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	player_hand_container.add_child(end_turn_button)
+	end_turn_button.custom_minimum_size = Vector2(120, 22)
+	buttons_column.add_child(end_turn_button)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 
 
-func _create_save_button() -> void:
+func _create_xp_save_row() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	player_xp_label = Label.new()
+	player_xp_label.add_theme_font_size_override("font_size", 11)
+	player_xp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(player_xp_label)
 	save_button = Button.new()
 	save_button.text = "Salva"
-	save_button.custom_minimum_size = Vector2(60, 20)
-	save_button.add_theme_font_size_override("font_size", 11)
+	save_button.custom_minimum_size = Vector2(50, 18)
+	save_button.add_theme_font_size_override("font_size", 10)
 	save_button.visible = false
-	player_stats_panel.add_child(save_button)
+	row.add_child(save_button)
 	save_button.pressed.connect(_on_save_pressed)
+	player_stats_panel.add_child(row)
+
+
+func _create_buffs_row() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	player_block_label = Label.new()
+	player_block_label.add_theme_font_size_override("font_size", 11)
+	player_block_label.visible = false
+	row.add_child(player_block_label)
+	player_attack_bonus_label = Label.new()
+	player_attack_bonus_label.add_theme_font_size_override("font_size", 11)
+	player_attack_bonus_label.visible = false
+	row.add_child(player_attack_bonus_label)
+	player_heal_bonus_label = Label.new()
+	player_heal_bonus_label.add_theme_font_size_override("font_size", 11)
+	player_heal_bonus_label.visible = false
+	row.add_child(player_heal_bonus_label)
+	player_stats_panel.add_child(row)
+
+
+func _create_log_toggle_button() -> void:
+	log_toggle_button = Button.new()
+	log_toggle_button.text = "📜 Cronologia"
+	log_toggle_button.add_theme_font_size_override("font_size", 11)
+	log_toggle_button.custom_minimum_size = Vector2(120, 22)
+	buttons_column.add_child(log_toggle_button)
+	log_toggle_button.pressed.connect(_on_log_toggle_pressed)
+
+
+func _on_log_toggle_pressed() -> void:
+	var showing: bool = not combat_log_overlay.visible
+	combat_log_overlay.visible = showing
+	log_toggle_button.text = "✕ Chiudi" if showing else "📜 Cronologia"
 
 
 func _on_save_pressed() -> void:
@@ -141,6 +184,9 @@ func _select_class(type: CharacterClass.Type) -> void:
 func _reset_visual_state() -> void:
 	game_over_overlay.visible = false
 	game_over_overlay.modulate.a = 1.0
+	combat_log_overlay.visible = false
+	if log_toggle_button:
+		log_toggle_button.text = "📜 Cronologia"
 	combat_log_text.clear()
 	enemy_card_played.text = "Nemico: —"
 	player_card_played.text = "Giocatore: —"
@@ -160,8 +206,13 @@ func _update_stats() -> void:
 	var e := GameManager.enemy
 	player_name_label.text = p.combatant_name
 	player_hp_label.text = "HP: %d/%d" % [p.health, p.max_health]
-	player_block_label.text = "🛡 %d" % p.block_buffer
-	player_block_label.visible = p.block_buffer > 0
+	var total_block: int = p.block_buffer + p.perm_block_bonus
+	player_block_label.text = "🛡 %d" % total_block
+	player_block_label.visible = total_block > 0
+	player_attack_bonus_label.text = "⚔️ +%d" % p.perm_attack_bonus
+	player_attack_bonus_label.visible = p.perm_attack_bonus > 0
+	player_heal_bonus_label.text = "💚 +%d" % p.perm_heal_bonus
+	player_heal_bonus_label.visible = p.perm_heal_bonus > 0
 	player_initiative_label.text = "Iniziativa: %d  |  Mana: %d/%d" % [p.initiative, p.mana, p.max_mana]
 	player_deck_label.text = "Mazzo: %d/%d" % [p.deck.remaining(), p.deck_total]
 	_update_xp_label()
@@ -328,13 +379,11 @@ func _refresh_player_hand() -> void:
 		tile.clicked.connect(_on_card_tile_clicked)
 		if c.mana_cost > mana:
 			tile.set_interactive(false)
-	player_hand_container.move_child(end_turn_button, -1)
 
 
 func _clear_player_hand() -> void:
 	for child in player_hand_container.get_children():
-		if child != end_turn_button:
-			child.queue_free()
+		child.queue_free()
 
 
 func _on_card_tile_clicked(card: Card) -> void:
