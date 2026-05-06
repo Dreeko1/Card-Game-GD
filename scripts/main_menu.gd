@@ -27,6 +27,10 @@ func _on_new_game() -> void:
 	SaveManager.clear_map()
 	GameManager.pending_resume = false
 	GameManager.map_mode = true
+	GameManager.player_xp = 0
+	GameManager.player_level = 1
+	SaveManager.save_meta(0, 1)
+	_update_level_display(1, 0)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 

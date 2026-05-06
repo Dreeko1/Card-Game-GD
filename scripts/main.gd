@@ -59,8 +59,10 @@ func _ready() -> void:
 	restart_button.pressed.connect(_on_restart_pressed)
 	_create_end_turn_button()
 	player_deck_label = Label.new()
+	player_deck_label.add_theme_font_size_override("font_size", 11)
 	player_stats_panel.add_child(player_deck_label)
 	player_xp_label = Label.new()
+	player_xp_label.add_theme_font_size_override("font_size", 11)
 	player_stats_panel.add_child(player_xp_label)
 	_create_save_button()
 
@@ -94,7 +96,8 @@ func _create_end_turn_button() -> void:
 func _create_save_button() -> void:
 	save_button = Button.new()
 	save_button.text = "Salva"
-	save_button.custom_minimum_size = Vector2(80, 28)
+	save_button.custom_minimum_size = Vector2(60, 20)
+	save_button.add_theme_font_size_override("font_size", 11)
 	save_button.visible = false
 	player_stats_panel.add_child(save_button)
 	save_button.pressed.connect(_on_save_pressed)

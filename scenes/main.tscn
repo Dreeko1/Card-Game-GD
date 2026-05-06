@@ -46,40 +46,40 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="StatsBar" type="HBoxContainer" parent="GameUI" unique_id=389072914]
-custom_minimum_size = Vector2(0, 100)
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 0
 anchor_right = 1.0
 offset_left = 12.0
 offset_top = 8.0
 offset_right = -12.0
-offset_bottom = 108.0
+offset_bottom = 148.0
 grow_horizontal = 2
 theme_override_constants/separation = 32
 
 [node name="PlayerStats" type="VBoxContainer" parent="GameUI/StatsBar" unique_id=490181025]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 3
 
 [node name="player_name" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=501290136]
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 14
 text = "—"
 
 [node name="player_hp" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=112399247]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "HP: —"
 
 [node name="player_block" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=333333333]
 visible = false
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "🛡 0"
 
 [node name="player_initiative" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=223508358]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "Iniziativa: —"
 
 [node name="VSeparator" type="VSeparator" parent="GameUI/StatsBar" unique_id=778052100]
@@ -88,30 +88,30 @@ layout_mode = 2
 [node name="EnemyStats" type="VBoxContainer" parent="GameUI/StatsBar" unique_id=334617469]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 3
 
 [node name="enemy_name" type="Label" parent="GameUI/StatsBar/EnemyStats" unique_id=445726570]
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 14
 text = "—"
 horizontal_alignment = 2
 
 [node name="enemy_hp" type="Label" parent="GameUI/StatsBar/EnemyStats" unique_id=556835681]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "HP: —"
 horizontal_alignment = 2
 
 [node name="enemy_block" type="Label" parent="GameUI/StatsBar/EnemyStats" unique_id=444444444]
 visible = false
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "🛡 0"
 horizontal_alignment = 2
 
 [node name="enemy_initiative" type="Label" parent="GameUI/StatsBar/EnemyStats" unique_id=667944792]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "Iniziativa: —"
 horizontal_alignment = 2
 
@@ -120,7 +120,7 @@ layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 12.0
-offset_top = 116.0
+offset_top = 156.0
 offset_right = -12.0
 offset_bottom = -224.0
 grow_horizontal = 2
