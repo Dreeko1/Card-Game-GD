@@ -1,20 +1,13 @@
 extends Control
 
-# Posizioni centrali di ogni nodo sulla MapContainer (1920×1020 usabile sotto l'HUD).
-# Layout isometrico: zone basse = facili, zone alte = difficili.
-const NODE_POSITIONS := [
-	[],                                                                   # zone 0 inutilizzata
-	[Vector2(740, 700), Vector2(1180, 700)],                             # zone 1
-	[Vector2(560, 450), Vector2(960, 390), Vector2(1360, 450)],         # zone 2
-	[Vector2(960, 140)],                                                  # zone 3 (boss)
-]
-
 const NODE_SIZE := Vector2(150, 72)
 
 const ZONE_LABELS := [
 	"", "Zona 1 — Bosco", "Zona 2 — Pianura Oscura", "Zona 3 — Fortezza"
 ]
 
+# Posizioni relative al viewport (0.0–1.0), calcolate in _ready
+var _node_positions := []
 var _node_buttons: Dictionary = {}
 
 @onready var map_container: Control = $MapContainer
@@ -24,6 +17,9 @@ var _node_buttons: Dictionary = {}
 
 func _ready() -> void:
 	abandon_btn.pressed.connect(_on_abandon)
+	# Aspetta che il layout sia calcolato prima di posizionare i nodi
+	await get_tree().process_frame
+	_build_positions()
 	_update_hud()
 	_add_zone_labels()
 	_draw_connections()
@@ -33,19 +29,34 @@ func _ready() -> void:
 		_show_cleared_overlay()
 
 
+func _build_positions() -> void:
+	var vp := get_viewport_rect().size
+	var hud_h := 58.0
+	var s := Vector2(vp.x, vp.y - hud_h)
+	var cx := s.x * 0.5
+	_node_positions = [
+		[],
+		[Vector2(cx - s.x * 0.18, s.y * 0.84), Vector2(cx + s.x * 0.18, s.y * 0.84)],
+		[Vector2(cx - s.x * 0.30, s.y * 0.52), Vector2(cx, s.y * 0.45), Vector2(cx + s.x * 0.30, s.y * 0.52)],
+		[Vector2(cx, s.y * 0.14)],
+	]
+
+
 func _update_hud() -> void:
 	var xp_in_lv := GameManager.player_xp - (GameManager.player_level - 1) * 100
 	player_info_label.text = "Lv.%d  |  %d/100 XP" % [GameManager.player_level, xp_in_lv]
 
 
 func _add_zone_labels() -> void:
-	var y_offsets := [710.0, 460.0, 155.0]
+	var vp := get_viewport_rect().size
+	var s := Vector2(vp.x, vp.y - 58.0)
+	var y_ratios := [0.87, 0.54, 0.17]
 	for i in 3:
 		var lbl := Label.new()
 		lbl.text = ZONE_LABELS[i + 1]
-		lbl.position = Vector2(40.0, y_offsets[i])
+		lbl.position = Vector2(16.0, s.y * y_ratios[i])
 		lbl.add_theme_font_size_override("font_size", 13)
-		lbl.modulate = Color(0.6, 0.6, 0.75)
+		lbl.modulate = Color(0.6, 0.6, 0.8)
 		map_container.add_child(lbl)
 
 
@@ -60,7 +71,7 @@ func _draw_connections() -> void:
 			line.add_point(from)
 			line.add_point(_center_of(to_node))
 			line.width = 3.0
-			line.default_color = Color(0.35, 0.35, 0.55, 0.7)
+			line.default_color = Color(0.55, 0.55, 0.75, 0.9)
 			map_container.add_child(line)
 
 
@@ -70,6 +81,20 @@ func _create_node_buttons() -> void:
 		btn.custom_minimum_size = NODE_SIZE
 		btn.position = _center_of(node) - NODE_SIZE / 2.0
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD
+		# Stile visibile indipendente dal tema
+		var style := StyleBoxFlat.new()
+		style.corner_radius_top_left = 8
+		style.corner_radius_top_right = 8
+		style.corner_radius_bottom_left = 8
+		style.corner_radius_bottom_right = 8
+		style.border_width_left = 2
+		style.border_width_right = 2
+		style.border_width_top = 2
+		style.border_width_bottom = 2
+		btn.add_theme_stylebox_override("normal", style)
+		btn.add_theme_stylebox_override("hover", style)
+		btn.add_theme_stylebox_override("pressed", style)
+		btn.add_theme_stylebox_override("disabled", style)
 		map_container.add_child(btn)
 		_node_buttons[node.id] = btn
 		var nid := node.id
@@ -80,23 +105,30 @@ func _refresh_nodes() -> void:
 	for id: int in _node_buttons:
 		var node := MapManager.get_node_by_id(id)
 		var btn: Button = _node_buttons[id]
+		var style := btn.get_theme_stylebox("normal") as StyleBoxFlat
 		match node.state:
 			MapNodeData.State.LOCKED:
 				btn.disabled = true
-				btn.modulate = Color(0.4, 0.4, 0.45)
 				btn.text = "???"
+				btn.add_theme_color_override("font_color", Color(0.55, 0.55, 0.6))
+				style.bg_color = Color(0.15, 0.15, 0.22)
+				style.border_color = Color(0.3, 0.3, 0.4)
 			MapNodeData.State.AVAILABLE:
 				btn.disabled = false
-				btn.modulate = Color(1.0, 1.0, 1.0)
 				btn.text = _node_label(node)
+				btn.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+				style.bg_color = Color(0.18, 0.22, 0.38)
+				style.border_color = Color(0.6, 0.7, 1.0)
 			MapNodeData.State.COMPLETED:
 				btn.disabled = true
-				btn.modulate = Color(0.3, 0.78, 0.3)
 				btn.text = "✓ " + EnemyData.DATA[node.enemy_type]["name"]
+				btn.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+				style.bg_color = Color(0.1, 0.28, 0.15)
+				style.border_color = Color(0.3, 0.85, 0.4)
 
 
 func _center_of(node: MapNodeData) -> Vector2:
-	return NODE_POSITIONS[node.zone][node.col]
+	return _node_positions[node.zone][node.col]
 
 
 func _node_label(node: MapNodeData) -> String:
