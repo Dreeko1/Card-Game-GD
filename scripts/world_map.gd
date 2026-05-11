@@ -43,6 +43,7 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	get_viewport().gui_release_focus()
 	_handle_movement()
 	_check_encounters()
 	_player.z_index = int(_player.position.y)
@@ -58,6 +59,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_movement() -> void:
 	var dir := Vector2(
+		float(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)),
+		float(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN))  - float(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
 		float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
 		float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
 	).normalized()
@@ -359,6 +362,7 @@ func _setup_hud() -> void:
 	abandon.text = "Menu"
 	abandon.custom_minimum_size = Vector2(90.0, 38.0)
 	abandon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	abandon.focus_mode = Control.FOCUS_NONE
 	abandon.pressed.connect(_on_abandon)
 	hbox.add_child(abandon)
 
