@@ -30,8 +30,55 @@ const DATA := {
 	}
 }
 
+const CLASS_UNLOCK_CARDS := {
+	Type.GUERRIERO: {
+		1: [
+			{"name": "Stoccata",     "type": Card.Type.ATTACK, "value": 10, "mana_cost": 3},
+			{"name": "Scudo Totale", "type": Card.Type.BLOCK,  "value": 12, "mana_cost": 3},
+		],
+		2: [
+			{"name": "Grido di Guerra", "type": Card.Type.BUFF, "value": 5, "mana_cost": 2},
+			{"name": "Seconda Pelle",   "type": Card.Type.BUFF, "value": 3, "mana_cost": 2},
+		],
+	},
+	Type.DRUIDO: {
+		1: [
+			{"name": "Radici",       "type": Card.Type.DEBUFF, "value": 4, "mana_cost": 2},
+			{"name": "Rigenerazione","type": Card.Type.HEAL,   "value": 8, "mana_cost": 2},
+		],
+		2: [
+			{"name": "Forma Orso",      "type": Card.Type.BUFF,  "value": 4, "mana_cost": 2},
+			{"name": "Spore Velenose",  "type": Card.Type.DEBUFF,"value": 6, "mana_cost": 3},
+		],
+	},
+	Type.MAGO: {
+		1: [
+			{"name": "Palla di Fuoco", "type": Card.Type.ATTACK, "value": 12, "mana_cost": 3},
+			{"name": "Fulmine",        "type": Card.Type.ATTACK, "value": 8,  "mana_cost": 2},
+		],
+		2: [
+			{"name": "Amplifica",    "type": Card.Type.BUFF,  "value": 6, "mana_cost": 3},
+			{"name": "Scudo Arcano", "type": Card.Type.BLOCK, "value": 8, "mana_cost": 2},
+		],
+	},
+	Type.LADRO: {
+		1: [
+			{"name": "Pugnalata", "type": Card.Type.ATTACK, "value": 7, "mana_cost": 2},
+			{"name": "Fuga",      "type": Card.Type.BLOCK,  "value": 4, "mana_cost": 1},
+		],
+		2: [
+			{"name": "Veleno",       "type": Card.Type.DEBUFF, "value": 5, "mana_cost": 2},
+			{"name": "Doppio Taglio","type": Card.Type.ATTACK, "value": 6, "mana_cost": 2},
+		],
+	},
+}
+
 static func get_data(type: Type) -> Dictionary:
 	return DATA[type]
+
+static func get_unlock_cards_for_zone(type: Type, zone: int) -> Array:
+	var class_zones: Dictionary = CLASS_UNLOCK_CARDS.get(type, {})
+	return class_zones.get(zone, [])
 
 static func build_combatant(type: Type) -> Combatant:
 	var d: Dictionary = DATA[type]

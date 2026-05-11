@@ -71,12 +71,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "HP: —"
 
-[node name="player_block" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=333333333]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "🛡 0"
-
 [node name="player_initiative" type="Label" parent="GameUI/StatsBar/PlayerStats" unique_id=223508358]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
@@ -115,6 +109,13 @@ theme_override_font_sizes/font_size = 12
 text = "Iniziativa: —"
 horizontal_alignment = 2
 
+[node name="VSeparator2" type="VSeparator" parent="GameUI/StatsBar" unique_id=555555556]
+layout_mode = 2
+
+[node name="ButtonsColumn" type="VBoxContainer" parent="GameUI/StatsBar" unique_id=666666667]
+layout_mode = 2
+theme_override_constants/separation = 4
+
 [node name="MainArea" type="HBoxContainer" parent="GameUI" unique_id=778053803]
 layout_mode = 0
 anchor_right = 1.0
@@ -127,15 +128,9 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 16
 
-[node name="CombatLog" type="RichTextLabel" parent="GameUI/MainArea" unique_id=889162914]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.3
-
 [node name="Board" type="VBoxContainer" parent="GameUI/MainArea" unique_id=990271025]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.7
 
 [node name="EnemyCardPlayed" type="Label" parent="GameUI/MainArea/Board" unique_id=101380136]
 layout_mode = 2
@@ -159,6 +154,22 @@ offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 12
+
+[node name="CombatLogOverlay" type="PanelContainer" parent="GameUI" unique_id=111222333]
+visible = false
+layout_mode = 0
+anchor_right = 0.55
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 156.0
+offset_bottom = -224.0
+grow_horizontal = 2
+grow_vertical = 2
+z_index = 10
+
+[node name="CombatLog" type="RichTextLabel" parent="GameUI/CombatLogOverlay" unique_id=889162914]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="GameOverOverlay" type="ColorRect" parent="GameUI" unique_id=434707469]
 visible = false

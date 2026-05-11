@@ -65,6 +65,7 @@ func load_buffs() -> Dictionary:
 		"attack": cfg.get_value("buffs", "attack", 0),
 		"block": cfg.get_value("buffs", "block", 0),
 		"hp": cfg.get_value("buffs", "hp", 0),
+		"heal": cfg.get_value("buffs", "heal", 0),
 	}
 
 
@@ -90,6 +91,14 @@ func load_unlocked_cards() -> Array:
 	if cfg.load(SAVE_PATH) != OK:
 		return []
 	return cfg.get_value("cards", "unlocked", [])
+
+
+func clear_unlocked_cards() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if cfg.has_section("cards"):
+		cfg.erase_section("cards")
+	cfg.save(SAVE_PATH)
 
 
 func save_map_data(node_data: Array, cleared: bool) -> void:
@@ -127,3 +136,8 @@ func clear_map() -> void:
 	if cfg.has_section("map"):
 		cfg.erase_section("map")
 	cfg.save(SAVE_PATH)
+
+
+func clear_all() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(SAVE_PATH)

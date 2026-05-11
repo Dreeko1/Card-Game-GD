@@ -17,7 +17,7 @@ offset_left = 16.0
 offset_top = 16.0
 offset_right = 140.0
 offset_bottom = 48.0
-text = "← Torna al Menu"
+text = "← Torna alla Mappa"
 
 [node name="TitleLabel" type="Label" parent="."]
 layout_mode = 1
