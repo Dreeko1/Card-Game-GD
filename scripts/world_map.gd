@@ -3,18 +3,20 @@ extends Node2D
 const PLAYER_SPEED     := 200.0
 const ENCOUNTER_RADIUS := 70.0
 const WORLD_BOUNDS     := Rect2(-700.0, -500.0, 1400.0, 1000.0)
-const PLAYER_START     := Vector2(0.0, 440.0)
+const PLAYER_START     := Vector2(0.0, 460.0)
 
 const NODE_WORLD_POS: Array[Vector2] = [
-	Vector2(-220.0,  300.0),
-	Vector2( 220.0,  300.0),
-	Vector2(-380.0,   50.0),
-	Vector2(   0.0,  -20.0),
-	Vector2( 380.0,   50.0),
-	Vector2(   0.0, -300.0),
+	Vector2(-280.0,  380.0),   # 0 — zona 1 sinistra
+	Vector2( 300.0,  350.0),   # 1 — zona 1 destra
+	Vector2(-380.0,   60.0),   # 2 — zona 2 sinistra
+	Vector2( 120.0,   20.0),   # 3 — zona 2 centro
+	Vector2( 350.0,  120.0),   # 4 — zona 2 destra
+	Vector2( -60.0, -300.0),   # 5 — zona 3 boss
 ]
 
-const ZONE_LABELS := ["Zona 1 — Bosco", "Zona 2 — Pianura Oscura", "Zona 3 — Fortezza"]
+const MERCHANT_POS  := Vector2(150.0, 380.0)   # PLAYER_START + Vector2(150, -80)
+
+@onready var _tilemap: TileMapLayer = $TileMapLayer
 
 var _player: CharacterBody2D
 var _camera: Camera2D
@@ -22,13 +24,16 @@ var _prompt_label: Label
 var _player_info_label: Label
 var _enemy_markers: Dictionary = {}
 var _near_node_id: int = -1
+var _near_merchant: bool = false
 var _hud_layer: CanvasLayer
 
 
 func _ready() -> void:
+	_setup_tilemap()
 	_setup_background()
 	_setup_zone_bands()
-	_setup_paths()
+	_setup_environment()
+	_setup_merchant_marker()
 	_setup_enemy_markers()
 	_setup_player()
 	_setup_hud()
@@ -40,11 +45,14 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	_handle_movement()
 	_check_encounters()
+	_player.z_index = int(_player.position.y)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.keycode == KEY_E and event.pressed and not event.echo:
-		if _near_node_id >= 0:
+		if _near_merchant:
+			get_tree().change_scene_to_file("res://scenes/merchant.tscn")
+		elif _near_node_id >= 0:
 			_trigger_combat(_near_node_id)
 
 
@@ -52,18 +60,25 @@ func _handle_movement() -> void:
 	var dir := Vector2(
 		float(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)),
 		float(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN))  - float(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
-	)
-	_player.velocity = dir.normalized() * PLAYER_SPEED
+	).normalized()
+	_player.velocity = dir * PLAYER_SPEED
 	_player.move_and_slide()
-	var pad := Vector2(20.0, 20.0)
 	_player.position = _player.position.clamp(
-		WORLD_BOUNDS.position + pad,
-		WORLD_BOUNDS.end - pad
+		WORLD_BOUNDS.position + Vector2(20, 20),
+		WORLD_BOUNDS.end - Vector2(20, 20)
 	)
 
 
 func _check_encounters() -> void:
 	_near_node_id = -1
+	_near_merchant = false
+
+	if _player.position.distance_to(MERCHANT_POS) < ENCOUNTER_RADIUS:
+		_near_merchant = true
+		_prompt_label.text = "[ E ]  Visita il Mercante"
+		_prompt_label.visible = true
+		return
+
 	for id: int in _enemy_markers:
 		var node := MapManager.get_node_by_id(id)
 		if node == null or node.state != MapNodeData.State.AVAILABLE:
@@ -84,6 +99,39 @@ func _trigger_combat(node_id: int) -> void:
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
+# Crea un'ImageTexture con un rombo isometrico verde per il terreno placeholder.
+func _make_iso_tile_texture() -> ImageTexture:
+	var img := Image.create(128, 64, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for y in 64:
+		for x in 128:
+			var nx := absf(float(x) / 64.0 - 1.0)
+			var ny := absf(float(y) / 32.0 - 1.0)
+			var d := nx + ny
+			if d <= 1.0:
+				var col := Color(0.22, 0.48, 0.16) if d < 0.88 else Color(0.13, 0.28, 0.09)
+				img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+func _setup_tilemap() -> void:
+	var ts := TileSet.new()
+	ts.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
+	ts.tile_layout = TileSet.TILE_LAYOUT_DIAMOND_DOWN
+	ts.tile_size = Vector2i(128, 64)
+
+	var src := TileSetAtlasSource.new()
+	src.texture = _make_iso_tile_texture()
+	src.texture_region_size = Vector2i(128, 64)
+	src.create_tile(Vector2i(0, 0))
+	var src_id := ts.add_source(src)
+
+	_tilemap.tile_set = ts
+	for col in range(-14, 15):
+		for row in range(-10, 11):
+			_tilemap.set_cell(Vector2i(col, row), src_id, Vector2i(0, 0))
+
+
 func _setup_background() -> void:
 	var bg := Polygon2D.new()
 	bg.polygon = PackedVector2Array([
@@ -92,16 +140,17 @@ func _setup_background() -> void:
 		WORLD_BOUNDS.end,
 		Vector2(WORLD_BOUNDS.position.x, WORLD_BOUNDS.end.y),
 	])
-	bg.color = Color(0.10, 0.15, 0.10)
+	bg.color = Color(0.06, 0.10, 0.06)
+	bg.z_index = -3000
 	add_child(bg)
 
 
 func _setup_zone_bands() -> void:
-	# [y_top, y_bottom, color] — zona 1 in basso, zona 3 in alto
+	# Bande semi-trasparenti sopra le tile: zona 1 (sud) verde, 2 marrone, 3 rossa.
 	var bands: Array = [
-		[100.0,   500.0, Color(0.08, 0.22, 0.08, 0.30)],
-		[-150.0,  100.0, Color(0.22, 0.17, 0.08, 0.30)],
-		[-500.0, -150.0, Color(0.22, 0.08, 0.08, 0.30)],
+		[200.0,  500.0, Color(0.08, 0.22, 0.08, 0.18)],
+		[-150.0, 200.0, Color(0.22, 0.17, 0.08, 0.18)],
+		[-500.0, -150.0, Color(0.22, 0.08, 0.08, 0.18)],
 	]
 	for i in 3:
 		var y_top: float = bands[i][0]
@@ -116,28 +165,76 @@ func _setup_zone_bands() -> void:
 			Vector2(WORLD_BOUNDS.position.x, y_bot),
 		])
 		poly.color = col
+		poly.z_index = -1000
 		add_child(poly)
 
-		var lbl := Label.new()
-		lbl.text = ZONE_LABELS[i]
-		lbl.position = Vector2(WORLD_BOUNDS.position.x + 16.0, y_top + 8.0)
-		lbl.add_theme_font_size_override("font_size", 13)
-		lbl.modulate = Color(0.75, 0.75, 0.85)
-		add_child(lbl)
 
+func _setup_environment() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42317
 
-func _setup_paths() -> void:
-	for node: MapNodeData in MapManager.nodes:
-		var from: Vector2 = NODE_WORLD_POS[node.id]
-		for conn_id: int in node.connections:
-			var line := Line2D.new()
-			line.add_point(from)
-			line.add_point(NODE_WORLD_POS[conn_id])
-			line.width = 8.0
-			line.default_color = Color(0.45, 0.38, 0.28, 0.9)
-			line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-			line.end_cap_mode   = Line2D.LINE_CAP_ROUND
-			add_child(line)
+	var blocked: Array[Vector2] = NODE_WORLD_POS.duplicate()
+	blocked.append(PLAYER_START)
+	var placed: Array[Vector2] = []
+
+	var attempts := 0
+	while placed.size() < 25 and attempts < 600:
+		attempts += 1
+		var pos := Vector2(
+			rng.randf_range(WORLD_BOUNDS.position.x + 80.0, WORLD_BOUNDS.end.x - 80.0),
+			rng.randf_range(WORLD_BOUNDS.position.y + 80.0, WORLD_BOUNDS.end.y - 80.0)
+		)
+		var ok := true
+		for b: Vector2 in blocked:
+			if pos.distance_to(b) < 110.0:
+				ok = false
+				break
+		if ok:
+			for p: Vector2 in placed:
+				if pos.distance_to(p) < 60.0:
+					ok = false
+					break
+		if not ok:
+			continue
+
+		placed.append(pos)
+		var env := Node2D.new()
+		env.position = pos
+		env.z_index = int(pos.y)
+		add_child(env)
+
+		var is_tree := rng.randf() < 0.62
+		var vis := Polygon2D.new()
+		var body := StaticBody2D.new()
+		var col := CollisionShape2D.new()
+		if is_tree:
+			vis.polygon = PackedVector2Array([
+				Vector2(  0.0, -28.0),
+				Vector2( 14.0,  10.0),
+				Vector2(-14.0,  10.0),
+			])
+			vis.color = Color(0.10, 0.28, 0.08)
+			var shape := ConvexPolygonShape2D.new()
+			shape.points = PackedVector2Array([
+				Vector2(  0.0, -28.0),
+				Vector2( 14.0,  10.0),
+				Vector2(-14.0,  10.0),
+			])
+			col.shape = shape
+		else:
+			vis.polygon = PackedVector2Array([
+				Vector2(-12.0, -7.0),
+				Vector2( 12.0, -7.0),
+				Vector2( 12.0,  7.0),
+				Vector2(-12.0,  7.0),
+			])
+			vis.color = Color(0.44, 0.44, 0.50)
+			var shape := RectangleShape2D.new()
+			shape.size = Vector2(24.0, 14.0)
+			col.shape = shape
+		env.add_child(vis)
+		body.add_child(col)
+		env.add_child(body)
 
 
 func _octagon(r: float) -> PackedVector2Array:
@@ -148,10 +245,33 @@ func _octagon(r: float) -> PackedVector2Array:
 	return pts
 
 
+func _setup_merchant_marker() -> void:
+	var marker := Node2D.new()
+	marker.position = MERCHANT_POS
+	marker.z_index = int(MERCHANT_POS.y)
+	add_child(marker)
+
+	var vis := Polygon2D.new()
+	vis.polygon = _octagon(28.0)
+	vis.color = Color(0.90, 0.72, 0.10)
+	marker.add_child(vis)
+
+	var lbl := Label.new()
+	lbl.text = "Mercante"
+	lbl.position = Vector2(-50.0, 38.0)
+	lbl.custom_minimum_size = Vector2(100.0, 0.0)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.modulate = Color(1.0, 1.0, 1.0)
+	marker.add_child(lbl)
+
+
 func _setup_enemy_markers() -> void:
 	for node: MapNodeData in MapManager.nodes:
 		var marker := Node2D.new()
 		marker.position = NODE_WORLD_POS[node.id]
+		# Z basato su Y per il corretto ordinamento isometrico.
+		marker.z_index = int(NODE_WORLD_POS[node.id].y)
 		add_child(marker)
 		_enemy_markers[node.id] = marker
 
@@ -187,14 +307,15 @@ func _setup_enemy_markers() -> void:
 func _setup_player() -> void:
 	_player = CharacterBody2D.new()
 	_player.position = PLAYER_START
+	_player.z_index = int(PLAYER_START.y)
 	add_child(_player)
 
+	# Triangolo alto e stretto, adatto alla visuale isometrica.
 	var vis := Polygon2D.new()
 	vis.polygon = PackedVector2Array([
-		Vector2(  0.0, -22.0),
-		Vector2( 14.0,   0.0),
-		Vector2(  0.0,  22.0),
-		Vector2(-14.0,   0.0),
+		Vector2(  0.0, -28.0),
+		Vector2( 10.0,  14.0),
+		Vector2(-10.0,  14.0),
 	])
 	vis.color = Color(0.30, 0.60, 1.0)
 	_player.add_child(vis)
