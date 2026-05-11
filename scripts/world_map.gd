@@ -43,6 +43,7 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	get_viewport().gui_release_focus()
 	_handle_movement()
 	_check_encounters()
 	_player.z_index = int(_player.position.y)
@@ -359,6 +360,7 @@ func _setup_hud() -> void:
 	abandon.text = "Menu"
 	abandon.custom_minimum_size = Vector2(90.0, 38.0)
 	abandon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	abandon.focus_mode = Control.FOCUS_NONE
 	abandon.pressed.connect(_on_abandon)
 	hbox.add_child(abandon)
 
